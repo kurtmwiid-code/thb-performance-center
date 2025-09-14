@@ -35,11 +35,6 @@ const ratedQuestions = [
     text: 'Did the rep review and discuss the estimated repair costs to generate a second price?',
     category: 'Second Ask'
   },
-  {
-    key: 'objection_handling',
-    text: 'Did the rep handle objections confidently?',
-    category: 'Objection Handling'
-  }
 ];
 
 const closingQuestions = [
