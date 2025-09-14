@@ -747,7 +747,7 @@ const DeepDiveView = () => {
                           padding: '0.25rem 0.5rem',
                           borderRadius: '4px',
                           backgroundColor: score === true ? 'green' : score === false ? 'red' : 'orange',
-                          color: 'white'
+                          color: 'grey'
                         }}>
                           {score === true ? 'Yes' : score === false ? 'No' : 'N/A'}
                         </span>
