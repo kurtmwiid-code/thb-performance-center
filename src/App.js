@@ -195,28 +195,29 @@ const App = () => {
         let totalClosing = 0;
 
         agentSessions.forEach(session => {
-          if (session.category_scores && session.category_scores.length > 0) {
-            const scores = session.category_scores[0];
-            totalBonding += scores.bonding_rapport || 0;
-            totalMagic += scores.magic_problem || 0;
-            totalSecond += scores.second_ask || 0;
-            totalObj += scores.objection_handling || 0;
-            
-            const offerScore = scores.closing_offer_presentation || 0;
-            const motivationScore = scores.closing_motivation || 0;
-            const objectionScore = scores.closing_objections || 0;
-            const closingAvg = (offerScore * 0.4 + motivationScore * 0.4 + objectionScore * 0.2);
-            totalClosing += closingAvg;
-          }
-        });
+  if (session.category_scores && session.category_scores.length > 0) {
+    const scores = session.category_scores[0];
+    totalBonding += scores.bonding_rapport || 0;
+    totalMagic += scores.magic_problem || 0;
+    totalSecond += scores.second_ask || 0;
+    // Skip objection_handling since you removed it
+    // totalObj += scores.objection_handling || 0;
+    
+    const offerScore = scores.closing_offer_presentation || 0;
+    const motivationScore = scores.closing_motivation || 0;
+    const objectionScore = scores.closing_objections || 0;
+    const closingAvg = (offerScore * 0.4 + motivationScore * 0.4 + objectionScore * 0.2);
+    totalClosing += closingAvg;
+  }
+});
 
-        const avgBonding = ((totalBonding / totalSessions) / 5 * 100);
-        const avgMagic = ((totalMagic / totalSessions) / 5 * 100);
-        const avgSecond = ((totalSecond / totalSessions) / 5 * 100);
-        const avgObj = ((totalObj / totalSessions) / 5 * 100);
-        const avgClosing = ((totalClosing / totalSessions) / 5 * 100);
+// Update the average calculations to use 4 categories instead of 5
+const avgBonding = ((totalBonding / totalSessions) / 5 * 100);
+const avgMagic = ((totalMagic / totalSessions) / 5 * 100);
+const avgSecond = ((totalSecond / totalSessions) / 5 * 100);
+const avgClosing = ((totalClosing / totalSessions) / 5 * 100);
 
-        const overallScore = (avgBonding + avgMagic + avgSecond + avgObj + avgClosing) / 5;
+const overallScore = (avgBonding + avgMagic + avgSecond + avgClosing) / 4; // Divide by 4, not 5
         
         return {
           id: agent.id,
