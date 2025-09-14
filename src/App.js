@@ -1156,11 +1156,18 @@ const SessionDetailModal = () => {
           <Home className="header-icon" />
           <div>
             <h1 className="header-title">
-              {new Date().toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric' 
-              }).toUpperCase()} - QC Session | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
-            </h1>
+  {agentSessions.length > 0 && agentSessions[0].qc_agents?.name ? 
+    `${agentSessions[0].qc_agents.name.toUpperCase()}'S ${new Date().toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric' 
+    }).toUpperCase()} - QC Session | ${selectedAgent.name} - ${selectedAgent.overallScore}% Overall`
+    :
+    `${new Date().toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric' 
+    }).toUpperCase()} - QC Session | ${selectedAgent.name} - ${selectedAgent.overallScore}% Overall`
+  }
+</h1>
             <div className="lead-breakdown">
               <span className="breakdown-item">📊 Lead Breakdown:</span>
               <span className="breakdown-status active">🟢 Active {activeCalls}</span>
@@ -1172,62 +1179,74 @@ const SessionDetailModal = () => {
       </div>
 
       <div className="main-content">
-        <div className="qc-section">
-          <h2 className="qc-title">📞 Call Details</h2>
-          <div className="qc-calls-grid">
-            {agentSessions.map((session, index) => (
-              <div 
-                key={session.id} 
-                className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
-                onClick={() => handleSessionClick(session.id)}
-                style={{ cursor: 'pointer', position: 'relative' }}
-              >
-                <div className="qc-call-header">
-                  <span className="qc-call-title">Session {index + 1} - {session.overall_score}%</span>
-                  <div className="session-actions" style={{ position: 'absolute', top: '0.5rem', right: '0.5rem' }}>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditSession(session.id);
-                      }}
-                      className="edit-btn"
-                      style={{ 
-                        marginRight: '0.5rem',
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: 'orange',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '12px'
-                      }}
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSession(session.id);
-                      }}
-                      className="delete-btn"
-                      style={{ 
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: 'red',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '12px'
-                      }}
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
-                </div>
-                <div className="qc-call-address">📍 {session.property_address}</div>
-                <div className="qc-call-time">🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)</div>
-              </div>
-            ))}
+  <div className="qc-section">
+    <h2 className="qc-title">📞 Session Details</h2>
+    <div className="qc-calls-grid">
+      {agentSessions.map((session, index) => (
+        <div 
+          key={session.id} 
+          className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
+          onClick={() => handleSessionClick(session.id)}
+          style={{ cursor: 'pointer', position: 'relative', padding: '1.5rem' }}
+        >
+          <div className="qc-call-header">
+            <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+              {session.property_address} - {session.overall_score}%
+            </div>
+            <div style={{ fontSize: '14px', color: '#888', marginBottom: '1rem' }}>
+              {session.qc_agents?.name} - {session.call_date} | {selectedAgent.name} - {session.overall_score}% Overall
+            </div>
+            <div style={{ fontSize: '14px', color: '#666', textAlign: 'center', marginBottom: '1rem' }}>
+              Click here to view more info
+            </div>
+          </div>
+          
+          <div className="qc-call-time" style={{ marginBottom: '1rem' }}>
+            🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)
+          </div>
+          
+          <div className="session-actions" style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: '0.5rem'
+          }}>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditSession(session.id);
+              }}
+              style={{ 
+                padding: '0.4rem 0.8rem',
+                backgroundColor: 'orange',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px'
+              }}
+            >
+              Edit
+            </button>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteSession(session.id);
+              }}
+              style={{ 
+                padding: '0.4rem 0.8rem',
+                backgroundColor: 'red',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px'
+              }}
+            >
+              Delete
+            </button>
           </div>
         </div>
+      ))}
+    </div>
+  </div>
 
         {Object.entries(selectedAgent.scores).map(([category, score]) => (
           <div key={category} className="category-section">
