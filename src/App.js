@@ -103,12 +103,14 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [qcAgents, setQcAgents] = useState([]);
   const [objectionLibrary, setObjectionLibrary] = useState([]);
+  const [skillsLibrary, setSkillsLibrary] = useState([]);
 
   useEffect(() => {
-    fetchAgentsData();
-    fetchQCAgents();
-    fetchObjectionLibrary();
-  }, []);
+  fetchAgentsData();
+  fetchQCAgents();
+  fetchObjectionLibrary();
+  fetchSkillsLibrary();
+}, []);
 
   /* ========== DATA FETCHING SECTION ========== */
   const fetchQCAgents = async () => {
@@ -137,6 +139,20 @@ const App = () => {
       console.error('Error fetching objection library:', error);
     }
   };
+
+  const fetchSkillsLibrary = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('skills_library')
+      .select('*')
+      .order('usage_count', { ascending: false });
+    
+    if (error) throw error;
+    setSkillsLibrary(data || []);
+  } catch (error) {
+    console.error('Error fetching skills library:', error);
+  }
+};
 
   const fetchAgentsData = async () => {
     try {
@@ -259,12 +275,56 @@ const App = () => {
       default: return '⚪';
     }
   };
-
-  const getProgressBarColor = (score) => {
-    if (score >= 85) return 'progress-green';
-    if (score >= 70) return 'progress-yellow';
-    return 'progress-red';
+ const getProgressBarColor = (score) => {
+  if (score >= 70) return 'progress-green';
+  if (score >= 50) return 'progress-yellow';
+  return 'progress-red';
+};
+const generateQCCommentSummary = (category, agentId) => {
+  const agentSessions = sessions.filter(s => s.agent_id === agentId);
+  const categoryKey = category.toLowerCase().replace(/[^a-z]/g, '_').replace(/__+/g, '_');
+  
+  const comments = agentSessions
+    .map(session => session.category_scores?.[0]?.[`${categoryKey}_comment`])
+    .filter(comment => comment && comment.trim());
+  
+  if (comments.length === 0) return "No QC comments available for this category.";
+  
+  const positiveWords = ['excellent', 'great', 'good', 'strong', 'well', 'solid'];
+  const negativeWords = ['needs', 'weak', 'poor', 'lacking', 'struggled', 'missed'];
+  
+  const sentiment = comments.some(c => 
+    positiveWords.some(word => c.toLowerCase().includes(word))
+  ) ? 'positive' : 
+  comments.some(c => 
+    negativeWords.some(word => c.toLowerCase().includes(word))
+  ) ? 'negative' : 'neutral';
+  
+  return comments.join(' ');
+};
+const extractKeywordTags = (comments, category) => {
+  if (!comments || comments.length === 0) return [];
+  
+  const allText = comments.join(' ').toLowerCase();
+  
+  const keywordPatterns = {
+    positive: ['excellent', 'great', 'strong', 'good', 'well', 'solid', 'confident'],
+    negative: ['needs', 'weak', 'poor', 'lacking', 'struggled', 'missed', 'unclear'],
+    neutral: ['average', 'okay', 'standard', 'typical', 'normal']
   };
+  
+  const tags = [];
+  
+  Object.entries(keywordPatterns).forEach(([sentiment, words]) => {
+    words.forEach(word => {
+      if (allText.includes(word)) {
+        tags.push({ text: word, sentiment });
+      }
+    });
+  });
+  
+  return tags;
+};
 
   /* ========== DASHBOARD COMPONENT SECTION ========== */
   const Dashboard = () => (
@@ -428,157 +488,145 @@ const App = () => {
         </div>
 
         <button 
-          onClick={() => setCurrentView('deepdive')}
-          className="deep-dive-button"
-        >
-          <Phone className="button-icon" />
-          <span>View Recent Calls & Deep Dive Analysis</span>
-        </button>
+  onClick={() => setCurrentView('deepdive')}
+  className="deep-dive-button"
+>
+  <Phone className="button-icon" />
+    <span>View Scoring Sessions & Deep Dive Analysis</span>
+     </button>
       </div>
     </div>
   );
 
   /* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
   const DeepDiveView = () => {
-    const mockCalls = [
-      { id: 1, address: '123 Oak St, Orlando, FL', status: 'Active', date: '2025-09-12', score: 89 },
-      { id: 2, address: '456 Pine Ave, Tampa, FL', status: 'Pending', date: '2025-09-11', score: 76 },
-      { id: 3, address: '789 Elm Dr, Miami, FL', status: 'Dead', date: '2025-09-10', score: 82 },
-      { id: 4, address: '321 Maple Ln, Jacksonville, FL', status: 'Active', date: '2025-09-09', score: 79 }
-    ];
+    const [selectedSession, setSelectedSession] = useState(null);
+const [showSessionDetail, setShowSessionDetail] = useState(false);
 
-    const activeCalls = mockCalls.filter(call => call.status === 'Active').length;
-    const pendingCalls = mockCalls.filter(call => call.status === 'Pending').length;
-    const deadCalls = mockCalls.filter(call => call.status === 'Dead').length;
+const handleSessionClick = async (sessionId) => {
+  try {
+    const { data, error } = await supabase
+      .from('qc_sessions')
+      .select(`
+        *,
+        binary_scores(*),
+        category_scores(*)
+      `)
+      .eq('id', sessionId)
+      .single();
+    
+    if (error) throw error;
+    setSelectedSession(data);
+    setShowSessionDetail(true);
+  } catch (error) {
+    console.error('Error fetching session details:', error);
+  }
+};
+const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
+const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
+const pendingCalls = agentSessions.filter(session => session.lead_status === 'Pending').length;
+const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;  
 
     return (
       <div className="app-container">
-        <div className="app-header">
-          <div className="header-content">
-            <button 
-              onClick={() => setCurrentView('reporting')}
-              className="back-button"
-            >
-              <ArrowLeft className="back-icon" />
-            </button>
-            <Home className="header-icon" />
-            <div>
-              <h1 className="header-title">SEPTEMBER 13 - QC Session | {selectedAgent.name} - {selectedAgent.overallScore}% Overall</h1>
-              <div className="lead-breakdown">
-                <span className="breakdown-item">📊 Lead Breakdown:</span>
-                <span className="breakdown-status active">🟢 Active {activeCalls}</span>
-                <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
-                <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
-              </div>
-            </div>
+      <div className="app-header">
+        <div className="header-content">
+        <button 
+          onClick={() => setCurrentView('reporting')}
+          className="back-button"
+        >
+          <ArrowLeft className="back-icon" />
+        </button>
+        <Home className="header-icon" />
+        <div>
+          <h1 className="header-title">
+          {new Date().toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: 'numeric' 
+          }).toUpperCase()} - QC Session | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
+          </h1>
+          <div className="lead-breakdown">
+          <span className="breakdown-item">📊 Lead Breakdown:</span>
+          <span className="breakdown-status active">🟢 Active {activeCalls}</span>
+          <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
+          <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
           </div>
         </div>
+        </div>
+      </div>
 
-        <div className="main-content">
-          <div className="qc-section">
-            <h2 className="qc-title">📞 Call Details (Click to find in CRM)</h2>
-            <div className="qc-calls-grid">
-              {mockCalls.map((call) => (
-                <div key={call.id} className={`qc-call-card ${call.status.toLowerCase()}`}>
-                  <div className="qc-call-header">
-                    <span className="qc-call-title">Call {call.id} - {call.score}%</span>
-                  </div>
-                  <div className="qc-call-address">📍 {call.address}</div>
-                  <div className="qc-call-time">🕒 {call.date} ({call.status} Lead)</div>
-                </div>
-              ))}
-            </div>
+      <div className="main-content">
+        <div className="qc-section">
+        <h2 className="qc-title">📞 Call Details</h2>
+        <div 
+          key={session.id} 
+          className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
+          onClick={() => handleSessionClick(session.id)}
+          style={{ cursor: 'pointer' }}
+        > 
+          <div className="qc-call-header">
+          <span className="qc-call-title">Session {index + 1} - {session.overall_score}%</span>
           </div>
+          <div className="qc-call-address">📍 {session.property_address}</div>
+          <div className="qc-call-time">🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)</div>
+        </div>
+        </div>
 
-          {Object.entries(selectedAgent.scores).map(([category, score]) => (
-            <div key={category} className="category-section">
-              <div className="category-header">
-                <span className="category-icon">
-                  {category === 'Bonding & Rapport' && '🤝'}
-                  {category === 'Magic Problem' && '🔍'}
-                  {category === 'Second Ask' && '❓'}
-                  {category === 'Objection Handling' && '⚡'}
-                  {category === 'Closing' && '🎯'}
-                </span>
-                <h3 className="category-title">{category} ({score}%)</h3>
-              </div>
-              
-              <div className="category-tags">
-                {category === 'Bonding & Rapport' && score >= 90 && (
-                  <>
-                    <span className="skill-tag">Excellent ice breaker</span>
-                    <span className="skill-tag">Genuine interest</span>
-                    <span className="skill-tag">Natural connection</span>
-                    <span className="skill-tag">Built trust quickly</span>
-                  </>
-                )}
-                {category === 'Magic Problem' && score >= 90 && (
-                  <>
-                    <span className="skill-tag">Found core motivation</span>
-                    <span className="skill-tag">Health reasons</span>
-                    <span className="skill-tag">Divorce settlement</span>
-                    <span className="skill-tag">Driving urgency</span>
-                  </>
-                )}
-                {category === 'Closing' && score < 70 && (
-                  <>
-                    <span className="skill-tag weak">Needs offer clarity</span>
-                    <span className="skill-tag weak">Low urgency creation</span>
-                    <span className="skill-tag weak">Weak follow-through</span>
-                  </>
-                )}
-              </div>
-
-              <div className="coaching-insight">
-                <span className="insight-icon">💡</span>
-                <span className="insight-text">
-                  <strong>Coaching Insight:</strong> 
-                  {category === 'Bonding & Rapport' && score >= 90 && 
-                    " Even on dead leads, maintains excellent rapport - shows true consistency!"
-                  }
-                  {category === 'Magic Problem' && score >= 90 && 
-                    " Strong discovery skills across all lead types - this is the superpower!"
-                  }
-                  {category === 'Closing' && score < 70 && 
-                    " This is the growth opportunity - clearer offers and stronger urgency creation needed."
-                  }
-                </span>
-              </div>
-            </div>
-          ))}
-
-          <div className="claude-section">
-            <div className="claude-header">
-              <div className="claude-avatar">C</div>
-              <h3 className="claude-title">Claude's Clever Comment</h3>
-            </div>
-            
-            <div className="claude-comment">
-              <p className="claude-text">
-                "{selectedAgent.name}'s showing real promise with some standout strengths! 
-                {Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).length > 0 && 
-                  ` Absolutely crushing it in ${Object.entries(selectedAgent.scores)
-                    .filter(([_, score]) => score >= 90)
-                    .map(([category]) => category)
-                    .join(' and ')} with ${Math.max(...Object.values(selectedAgent.scores))}% - that's elite territory!`
-                }
-                {selectedAgent.overallScore >= 80 ? 
-                  ` With an ${selectedAgent.overallScore}% overall, they're consistently delivering quality calls. ` :
-                  selectedAgent.overallScore >= 70 ?
-                  ` At ${selectedAgent.overallScore}% overall, they're building solid momentum. ` :
-                  ` At ${selectedAgent.overallScore}% overall, there's clear growth opportunity. `
-                }
-                The data shows focusing on 
-                {Object.entries(selectedAgent.scores)
-                  .filter(([_, score]) => score < 70)
-                  .map(([category]) => category)
-                  .slice(0, 2)
-                  .join(' and ') || 'maintaining current performance'} 
-                could unlock their next level!"
-              </p>
-            </div>
+        {Object.entries(selectedAgent.scores).map(([category, score]) => (
+        <div key={category} className="category-section">
+          <div className="category-header">
+          <span className="category-icon">
+            {category === 'Bonding & Rapport' && '🤝'}
+            {category === 'Magic Problem' && '🔍'}
+            {category === 'Second Ask' && '❓'}
+            {category === 'Objection Handling' && '⚡'}
+            {category === 'Closing' && '🎯'}
+          </span>
+          <h3 className="category-title">{category} ({score}%)</h3>
+          </div>
+          
+          <div className="coaching-insight">
+          <span className="insight-icon">💡</span>
+          <span className="insight-text">
+            <strong>QC Comment Summaries:</strong> 
+            {generateQCCommentSummary(category, selectedAgent.id)}
+          </span>
           </div>
         </div>
+        ))}
+
+        <div className="claude-section">
+        <div className="claude-header">
+          <div className="claude-avatar">C</div>
+          <h3 className="claude-title">Claude's Clever Comment</h3>
+        </div>
+        
+        <div className="claude-comment">
+          <p className="claude-text">
+          "{selectedAgent.name}'s showing real promise with some standout strengths! 
+          {Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).length > 0 && 
+            ` Absolutely crushing it in ${Object.entries(selectedAgent.scores)
+            .filter(([_, score]) => score >= 90)
+            .map(([category]) => category)
+            .join(' and ')} with ${Math.max(...Object.values(selectedAgent.scores))}% - that's elite territory!`
+          }
+          {selectedAgent.overallScore >= 80 ? 
+            ` With an ${selectedAgent.overallScore}% overall, they're consistently delivering quality calls. ` :
+            selectedAgent.overallScore >= 70 ?
+            ` At ${selectedAgent.overallScore}% overall, they're building solid momentum. ` :
+            ` At ${selectedAgent.overallScore}% overall, there's clear growth opportunity. `
+          }
+          The data shows focusing on 
+          {Object.entries(selectedAgent.scores)
+            .filter(([_, score]) => score < 70)
+            .map(([category]) => category)
+            .slice(0, 2)
+            .join(' and ') || 'maintaining current performance'} 
+          could unlock their next level!"
+          </p>
+        </div>
+        </div>
+      </div>
       </div>
     );
   };
@@ -872,6 +920,31 @@ const App = () => {
         [skillsKey]: prev[skillsKey].filter((_, index) => index !== skillIndex)
       }));
     };
+    const updateSkillUsage = async (skillId) => {
+  await supabase
+    .from('skills_library')
+    .update({ usage_count: supabase.raw('usage_count + 1') })
+    .eq('id', skillId);
+};
+
+const saveNewSkill = async (skillText, category) => {
+  await supabase
+    .from('skills_library')
+    .insert([{
+      skill_text: skillText,
+      category: category,
+      usage_count: 1
+    }]);
+  await fetchSkillsLibrary(); // Refresh the library
+};
+
+const removeSkillByText = (category, skillText) => {
+  const skillsKey = `${category}_skills`;
+  setFormData(prev => ({
+    ...prev,
+    [skillsKey]: prev[skillsKey].filter(skill => skill !== skillText)
+  }));
+};
 
     /* ========== N/A FUNCTIONALITY SECTION ========== */
     const handleNAToggle = (field) => {
@@ -917,11 +990,32 @@ const App = () => {
               Skip for Now
             </button>
             <button 
-              onClick={() => {
-                // Save training examples logic would go here
-                setShowTrainingRedirect(false);
-                alert('Training examples saved!');
-              }}
+              onClick={async () => {
+  try {
+    // Save each training example
+    for (let index = 0; index < trainingData.categories.length; index++) {
+      const category = trainingData.categories[index];
+      const timestampInput = document.querySelectorAll('.timestamp-input input')[index];
+      
+      await supabase.from('training_examples').insert([{
+        agent_id: selectedAgentToScore,
+        category: category.category,
+        score: category.score,
+        qc_comment: category.comment,
+        property_address: trainingData.propertyAddress,
+        call_date: trainingData.callDate,
+        call_time: trainingData.callTime,
+        timestamp_start: timestampInput?.value || ''
+      }]);
+    }
+    
+    setShowTrainingRedirect(false);
+    alert('Training examples saved to library!');
+  } catch (error) {
+    console.error('Error saving training examples:', error);
+    alert('Error saving training examples');
+  }
+}}
               className="btn-primary"
             >
               Save Training Examples
@@ -1149,8 +1243,8 @@ const App = () => {
                     className="form-select"
                   >
                     <option value="">Min</option>
-                    {['00','15','30','45'].map(min => (
-                      <option key={min} value={min}>{min}</option>
+                    {Array.from({length: 60}, (_, i) => i.toString().padStart(2, '0')).map(min => (
+                    <option key={min} value={min}>{min}</option>
                     ))}
                   </select>
                   
@@ -1258,23 +1352,49 @@ const App = () => {
 
                   {/* Skills Section */}
                   <div className="skills-section">
-                    <label>Skills & Techniques Used:</label>
-                    <div className="skills-input-group">
-                      <input
-                        type="text"
-                        placeholder="Add a skill or technique..."
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (e.target.value.trim()) {
-                              addSkill(question.key, e.target.value.trim());
-                              e.target.value = '';
-                            }
-                          }
-                        }}
-                        className="skills-input"
-                      />
-                    </div>
+  <label>Skills & Techniques Used:</label>
+  
+  <div className="skills-library">
+    <h5>Quick Select (Common Skills):</h5>
+    <div className="skills-checkboxes">
+      {skillsLibrary.filter(skill => skill.category === question.key || skill.category === 'general').map(skill => (
+        <label key={skill.id} className="skill-checkbox">
+          <input
+            type="checkbox"
+            checked={formData[`${question.key}_skills`].includes(skill.skill_text)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                addSkill(question.key, skill.skill_text);
+                updateSkillUsage(skill.id);
+              } else {
+                removeSkillByText(question.key, skill.skill_text);
+              }
+            }}
+          />
+          {skill.skill_text}
+          <span className="usage-count">({skill.usage_count})</span>
+        </label>
+      ))}
+    </div>
+  </div>
+  
+  <div className="skills-input-group">
+    <input
+      type="text"
+      placeholder="Add new skill or technique..."
+      onKeyPress={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (e.target.value.trim()) {
+            addSkill(question.key, e.target.value.trim());
+            saveNewSkill(e.target.value.trim(), question.key);
+            e.target.value = '';
+          }
+        }
+      }}
+      className="skills-input"
+    />
+  </div>
                     
                     <div className="skills-tags">
                       {formData[`${question.key}_skills`].map((skill, index) => (
