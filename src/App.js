@@ -182,7 +182,6 @@ const App = () => {
               'Bonding & Rapport': 0,
               'Magic Problem': 0,
               'Second Ask': 0,
-              'Objection Handling': 0,
               'Closing': 0
             },
             trend: 'down',
@@ -191,8 +190,8 @@ const App = () => {
         }
 
         const totalSessions = agentSessions.length;
-        let totalBonding = 0, totalMagic = 0, totalSecond = 0, totalObj = 0;
-        let totalClosing = 0;
+        let totalBonding = 0, totalMagic = 0, totalSecond = 0;
+let totalClosing = 0;
 
         agentSessions.forEach(session => {
   if (session.category_scores && session.category_scores.length > 0) {
@@ -228,7 +227,6 @@ const overallScore = (avgBonding + avgMagic + avgSecond + avgClosing) / 4; // Di
             'Bonding & Rapport': Math.round(avgBonding),
             'Magic Problem': Math.round(avgMagic),
             'Second Ask': Math.round(avgSecond),
-            'Objection Handling': Math.round(avgObj),
             'Closing': Math.round(avgClosing)
           },
           trend: 'up',
