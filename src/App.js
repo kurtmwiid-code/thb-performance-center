@@ -675,24 +675,24 @@ const DeepDiveView = () => {
   };
 
   const handleDeleteSession = async (sessionId) => {
-    if (!window.confirm('Are you sure you want to delete this QC session?')) {
-      return;
-    }
+  if (!window.confirm('Are you sure you want to delete this QC session?')) {
+    return;
+  }
 
-    try {
-      const { error } = await supabase
-        .from('qc_sessions')
-        .delete()
-        .eq('id', sessionId);
+  try {
+    const { error } = await supabase
+      .from('qc_sessions')
+      .delete()
+      .eq('id', sessionId);
 
-      if (error) throw error;
-      alert('QC Session deleted successfully');
-      await fetchAgentsData();
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      alert('Error deleting session');
-    }
-  };
+    if (error) throw error;
+    alert('QC Session deleted successfully');
+    await fetchAgentsData();
+  } catch (error) {
+    console.error('Error deleting session:', error);
+    alert('Error deleting session');
+  }
+};
 
   const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
   const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
@@ -700,160 +700,254 @@ const DeepDiveView = () => {
   const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;
 
   // Session Detail Modal
-  const SessionDetailModal = () => (
-    showSessionDetail && selectedSession && (
-      <div className="modal-overlay" style={{
+const SessionDetailModal = () => {
+  // Add ESC key listener
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        setShowSessionDetail(false);
+      }
+    };
+
+    if (showSessionDetail) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [showSessionDetail]);
+
+  return showSessionDetail && selectedSession && (
+    <div 
+      className="modal-overlay" 
+      onClick={() => setShowSessionDetail(false)}
+      style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.8)',
+        backgroundColor: 'rgba(0,0,0,0.9)',
         zIndex: 1000,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center'
-      }}>
-        <div className="modal-content" style={{
-          backgroundColor: 'white',
+      }}
+    >
+      <div 
+        className="modal-content" 
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: '#1a1a1a',
+          color: '#ffffff',
           padding: '2rem',
-          borderRadius: '8px',
+          borderRadius: '12px',
           maxWidth: '900px',
           maxHeight: '85vh',
           overflow: 'auto',
-          width: '95%'
+          width: '95%',
+          border: '1px solid #333'
+        }}
+      >
+        <div className="session-detail-header" style={{ 
+          borderBottom: '2px solid #333', 
+          paddingBottom: '1rem', 
+          marginBottom: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start'
         }}>
-          <div className="session-detail-header" style={{ borderBottom: '2px solid #eee', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-            <h2>Session Details - {selectedAgent.name}</h2>
-            <p><strong>Property:</strong> {selectedSession.property_address}</p>
-            <p><strong>Date:</strong> {selectedSession.call_date} {selectedSession.call_time}</p>
-            <p><strong>Lead Status:</strong> {selectedSession.lead_status}</p>
-            <p><strong>QC Agent:</strong> {selectedSession.qc_agents?.name}</p>
-            <p><strong>Overall Score:</strong> {selectedSession.overall_score}%</p>
+          <div>
+            <h2 style={{ color: '#ffffff', margin: '0 0 1rem 0' }}>Session Details - {selectedAgent.name}</h2>
+            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Property:</strong> {selectedSession.property_address}</p>
+            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Date:</strong> {selectedSession.call_date} {selectedSession.call_time}</p>
+            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Lead Status:</strong> {selectedSession.lead_status}</p>
+            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>QC Agent:</strong> {selectedSession.qc_agents?.name}</p>
+            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Overall Score:</strong> {selectedSession.overall_score}%</p>
           </div>
+          <button 
+            onClick={() => setShowSessionDetail(false)}
+            style={{ 
+              background: 'none',
+              border: 'none',
+              color: '#ffffff',
+              fontSize: '24px',
+              cursor: 'pointer',
+              padding: '0.5rem'
+            }}
+          >
+            ✕
+          </button>
+        </div>
 
-          {/* Binary Questions */}
-          <div className="session-section">
-            <h3>Binary Questions</h3>
-            {selectedSession.binary_scores && selectedSession.binary_scores.length > 0 && (
-              <div>
-                {binaryQuestions.map((question) => {
-                  const score = selectedSession.binary_scores[0][question.key];
-                  return (
-                    <div key={question.key} style={{ margin: '1rem 0', padding: '0.5rem', backgroundColor: '#f9f9f9' }}>
-                      <strong>{question.text}</strong>
-                      <div style={{ marginTop: '0.5rem' }}>
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          backgroundColor: score === true ? 'green' : score === false ? 'red' : 'orange',
-                          color: 'grey'
-                        }}>
-                          {score === true ? 'Yes' : score === false ? 'No' : 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Category Ratings */}
-          <div className="session-section">
-            <h3>Category Ratings</h3>
-            {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
-              <div>
-                {ratedQuestions.map((question) => {
-                  const score = selectedSession.category_scores[0][question.key];
-                  const comment = selectedSession.category_scores[0][`${question.key}_comment`];
-                  return (
-                    <div key={question.key} style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong>{question.category}</strong>
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          backgroundColor: score >= 4 ? 'green' : score >= 3 ? 'orange' : 'red',
-                          color: 'white'
-                        }}>
-                          {score || 'N/A'}/5
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>{question.text}</p>
-                      {comment && (
-                        <div style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px' }}>
-                          <strong>Comment:</strong> {comment}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Closing Questions */}
-          <div className="session-section">
-            <h3>Closing Questions</h3>
-            {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
-              <div>
-                {closingQuestions.map((question) => {
-                  const score = selectedSession.category_scores[0][question.key];
-                  const comment = selectedSession.category_scores[0][`${question.key}_comment`];
-                  return (
-                    <div key={question.key} style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong>{question.text} ({Math.round(question.weight * 100)}% weight)</strong>
-                        <span style={{
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          backgroundColor: score >= 4 ? 'green' : score >= 3 ? 'orange' : 'red',
-                          color: 'white'
-                        }}>
-                          {score || 'N/A'}/5
-                        </span>
-                      </div>
-                      {comment && (
-                        <div style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px' }}>
-                          <strong>Comment:</strong> {comment}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Final Comment */}
-          {selectedSession.final_comment && (
-            <div className="session-section">
-              <h3>Final Comment</h3>
-              <div style={{ padding: '1rem', backgroundColor: '#f0f8ff', borderRadius: '4px' }}>
-                {selectedSession.final_comment}
-              </div>
+        {/* Binary Questions */}
+        <div className="session-section" style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Binary Questions</h3>
+          {selectedSession.binary_scores && selectedSession.binary_scores.length > 0 && (
+            <div>
+              {binaryQuestions.map((question) => {
+                const score = selectedSession.binary_scores[0][question.key];
+                return (
+                  <div key={question.key} style={{ 
+                    margin: '1rem 0', 
+                    padding: '1rem', 
+                    backgroundColor: '#2a2a2a', 
+                    borderRadius: '8px',
+                    border: '1px solid #333'
+                  }}>
+                    <div style={{ color: '#ffffff', marginBottom: '0.5rem' }}><strong>{question.text}</strong></div>
+                    <span style={{
+                      padding: '0.5rem 1rem',
+                      borderRadius: '6px',
+                      backgroundColor: score === true ? '#22c55e' : score === false ? '#ef4444' : '#f59e0b',
+                      color: 'white',
+                      fontWeight: 'bold'
+                    }}>
+                      {score === true ? 'Yes' : score === false ? 'No' : 'N/A'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
+        </div>
 
-          <div style={{ marginTop: '2rem', textAlign: 'right' }}>
-            <button 
-              onClick={() => setShowSessionDetail(false)}
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: 'gray',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px'
-              }}
-            >
-              Close
-            </button>
+        {/* Category Ratings */}
+        <div className="session-section" style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Category Ratings</h3>
+          {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
+            <div>
+              {ratedQuestions.map((question) => {
+                const score = selectedSession.category_scores[0][question.key];
+                const comment = selectedSession.category_scores[0][`${question.key}_comment`];
+                return (
+                  <div key={question.key} style={{ 
+                    margin: '1rem 0', 
+                    padding: '1rem', 
+                    backgroundColor: '#2a2a2a', 
+                    borderRadius: '8px',
+                    border: '1px solid #333'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <strong style={{ color: '#ffffff' }}>{question.category}</strong>
+                      <span style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '6px',
+                        backgroundColor: score >= 4 ? '#22c55e' : score >= 3 ? '#f59e0b' : '#ef4444',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}>
+                        {score || 'N/A'}/5
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.9rem', color: '#cccccc', margin: '0.5rem 0', fontStyle: 'italic' }}>
+                      {question.text}
+                    </p>
+                    {comment && (
+                      <div style={{ 
+                        marginTop: '1rem', 
+                        padding: '1rem', 
+                        backgroundColor: '#1a1a1a', 
+                        borderRadius: '6px',
+                        border: '1px solid #444'
+                      }}>
+                        <strong style={{ color: '#ffffff' }}>QC Comment:</strong>
+                        <p style={{ color: '#cccccc', margin: '0.5rem 0 0 0' }}>{comment}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Closing Questions */}
+        <div className="session-section" style={{ marginBottom: '2rem' }}>
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Closing Questions</h3>
+          {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
+            <div>
+              {closingQuestions.map((question) => {
+                const score = selectedSession.category_scores[0][question.key];
+                const comment = selectedSession.category_scores[0][`${question.key}_comment`];
+                return (
+                  <div key={question.key} style={{ 
+                    margin: '1rem 0', 
+                    padding: '1rem', 
+                    backgroundColor: '#2a2a2a', 
+                    borderRadius: '8px',
+                    border: '1px solid #333'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <strong style={{ color: '#ffffff' }}>
+                        {question.text} ({Math.round(question.weight * 100)}% weight)
+                      </strong>
+                      <span style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '6px',
+                        backgroundColor: score >= 4 ? '#22c55e' : score >= 3 ? '#f59e0b' : '#ef4444',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}>
+                        {score || 'N/A'}/5
+                      </span>
+                    </div>
+                    {comment && (
+                      <div style={{ 
+                        marginTop: '1rem', 
+                        padding: '1rem', 
+                        backgroundColor: '#1a1a1a', 
+                        borderRadius: '6px',
+                        border: '1px solid #444'
+                      }}>
+                        <strong style={{ color: '#ffffff' }}>QC Comment:</strong>
+                        <p style={{ color: '#cccccc', margin: '0.5rem 0 0 0' }}>{comment}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Final Comment */}
+        {selectedSession.final_comment && (
+          <div className="session-section">
+            <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Final Comment</h3>
+            <div style={{ 
+              padding: '1rem', 
+              backgroundColor: '#2a2a2a', 
+              borderRadius: '8px',
+              border: '1px solid #333',
+              color: '#cccccc'
+            }}>
+              {selectedSession.final_comment}
+            </div>
           </div>
+        )}
+
+        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <button 
+            onClick={() => setShowSessionDetail(false)}
+            style={{ 
+              padding: '0.75rem 2rem',
+              backgroundColor: '#374151',
+              color: 'white',
+              border: '1px solid #6b7280',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            Close (ESC)
+          </button>
         </div>
       </div>
-    )
+    </div>
   );
+};
 
   const EditModal = () => (
     showEditModal && (
