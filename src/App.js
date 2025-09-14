@@ -106,11 +106,11 @@ const App = () => {
   const [skillsLibrary, setSkillsLibrary] = useState([]);
 
   useEffect(() => {
-  fetchAgentsData();
-  fetchQCAgents();
-  fetchObjectionLibrary();
-  fetchSkillsLibrary();
-}, []);
+    fetchAgentsData();
+    fetchQCAgents();
+    fetchObjectionLibrary();
+    fetchSkillsLibrary();
+  }, []);
 
   /* ========== DATA FETCHING SECTION ========== */
   const fetchQCAgents = async () => {
@@ -141,18 +141,18 @@ const App = () => {
   };
 
   const fetchSkillsLibrary = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('skills_library')
-      .select('*')
-      .order('usage_count', { ascending: false });
-    
-    if (error) throw error;
-    setSkillsLibrary(data || []);
-  } catch (error) {
-    console.error('Error fetching skills library:', error);
-  }
-};
+    try {
+      const { data, error } = await supabase
+        .from('skills_library')
+        .select('*')
+        .order('usage_count', { ascending: false });
+      
+      if (error) throw error;
+      setSkillsLibrary(data || []);
+    } catch (error) {
+      console.error('Error fetching skills library:', error);
+    }
+  };
 
   const fetchAgentsData = async () => {
     try {
@@ -275,56 +275,59 @@ const App = () => {
       default: return '⚪';
     }
   };
- const getProgressBarColor = (score) => {
-  if (score >= 70) return 'progress-green';
-  if (score >= 50) return 'progress-yellow';
-  return 'progress-red';
-};
-const generateQCCommentSummary = (category, agentId) => {
-  const agentSessions = sessions.filter(s => s.agent_id === agentId);
-  const categoryKey = category.toLowerCase().replace(/[^a-z]/g, '_').replace(/__+/g, '_');
-  
-  const comments = agentSessions
-    .map(session => session.category_scores?.[0]?.[`${categoryKey}_comment`])
-    .filter(comment => comment && comment.trim());
-  
-  if (comments.length === 0) return "No QC comments available for this category.";
-  
-  const positiveWords = ['excellent', 'great', 'good', 'strong', 'well', 'solid'];
-  const negativeWords = ['needs', 'weak', 'poor', 'lacking', 'struggled', 'missed'];
-  
-  const sentiment = comments.some(c => 
-    positiveWords.some(word => c.toLowerCase().includes(word))
-  ) ? 'positive' : 
-  comments.some(c => 
-    negativeWords.some(word => c.toLowerCase().includes(word))
-  ) ? 'negative' : 'neutral';
-  
-  return comments.join(' ');
-};
-const extractKeywordTags = (comments, category) => {
-  if (!comments || comments.length === 0) return [];
-  
-  const allText = comments.join(' ').toLowerCase();
-  
-  const keywordPatterns = {
-    positive: ['excellent', 'great', 'strong', 'good', 'well', 'solid', 'confident'],
-    negative: ['needs', 'weak', 'poor', 'lacking', 'struggled', 'missed', 'unclear'],
-    neutral: ['average', 'okay', 'standard', 'typical', 'normal']
+
+  const getProgressBarColor = (score) => {
+    if (score >= 70) return 'progress-green';
+    if (score >= 50) return 'progress-yellow';
+    return 'progress-red';
   };
-  
-  const tags = [];
-  
-  Object.entries(keywordPatterns).forEach(([sentiment, words]) => {
-    words.forEach(word => {
-      if (allText.includes(word)) {
-        tags.push({ text: word, sentiment });
-      }
+
+  const generateQCCommentSummary = (category, agentId) => {
+    const agentSessions = sessions.filter(s => s.agent_id === agentId);
+    const categoryKey = category.toLowerCase().replace(/[^a-z]/g, '_').replace(/__+/g, '_');
+    
+    const comments = agentSessions
+      .map(session => session.category_scores?.[0]?.[`${categoryKey}_comment`])
+      .filter(comment => comment && comment.trim());
+    
+    if (comments.length === 0) return "No QC comments available for this category.";
+    
+    const positiveWords = ['excellent', 'great', 'good', 'strong', 'well', 'solid'];
+    const negativeWords = ['needs', 'weak', 'poor', 'lacking', 'struggled', 'missed'];
+    
+    const sentiment = comments.some(c => 
+      positiveWords.some(word => c.toLowerCase().includes(word))
+    ) ? 'positive' : 
+    comments.some(c => 
+      negativeWords.some(word => c.toLowerCase().includes(word))
+    ) ? 'negative' : 'neutral';
+    
+    return comments.join(' ');
+  };
+
+  const extractKeywordTags = (comments, category) => {
+    if (!comments || comments.length === 0) return [];
+    
+    const allText = comments.join(' ').toLowerCase();
+    
+    const keywordPatterns = {
+      positive: ['excellent', 'great', 'strong', 'good', 'well', 'solid', 'confident'],
+      negative: ['needs', 'weak', 'poor', 'lacking', 'struggled', 'missed', 'unclear'],
+      neutral: ['average', 'okay', 'standard', 'typical', 'normal']
+    };
+    
+    const tags = [];
+    
+    Object.entries(keywordPatterns).forEach(([sentiment, words]) => {
+      words.forEach(word => {
+        if (allText.includes(word)) {
+          tags.push({ text: word, sentiment });
+        }
+      });
     });
-  });
-  
-  return tags;
-};
+    
+    return tags;
+  };
 
   /* ========== DASHBOARD COMPONENT SECTION ========== */
   const Dashboard = () => (
@@ -488,12 +491,12 @@ const extractKeywordTags = (comments, category) => {
         </div>
 
         <button 
-  onClick={() => setCurrentView('deepdive')}
-  className="deep-dive-button"
->
-  <Phone className="button-icon" />
-    <span>View Scoring Sessions & Deep Dive Analysis</span>
-     </button>
+          onClick={() => setCurrentView('deepdive')}
+          className="deep-dive-button"
+        >
+          <Phone className="button-icon" />
+          <span>View Scoring Sessions & Deep Dive Analysis</span>
+        </button>
       </div>
     </div>
   );
@@ -501,132 +504,542 @@ const extractKeywordTags = (comments, category) => {
   /* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
   const DeepDiveView = () => {
     const [selectedSession, setSelectedSession] = useState(null);
-const [showSessionDetail, setShowSessionDetail] = useState(false);
+    const [showSessionDetail, setShowSessionDetail] = useState(false);
+    const [editingSession, setEditingSession] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editFormData, setEditFormData] = useState({});
 
-const handleSessionClick = async (sessionId) => {
-  try {
-    const { data, error } = await supabase
-      .from('qc_sessions')
-      .select(`
-        *,
-        binary_scores(*),
-        category_scores(*)
-      `)
-      .eq('id', sessionId)
-      .single();
-    
-    if (error) throw error;
-    setSelectedSession(data);
-    setShowSessionDetail(true);
-  } catch (error) {
-    console.error('Error fetching session details:', error);
-  }
-};
-const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
-const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
-const pendingCalls = agentSessions.filter(session => session.lead_status === 'Pending').length;
-const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;  
+    const handleSessionClick = async (sessionId) => {
+      try {
+        const { data, error } = await supabase
+          .from('qc_sessions')
+          .select(`
+            *,
+            binary_scores(*),
+            category_scores(*)
+          `)
+          .eq('id', sessionId)
+          .single();
+        
+        if (error) throw error;
+        setSelectedSession(data);
+        setShowSessionDetail(true);
+      } catch (error) {
+        console.error('Error fetching session details:', error);
+      }
+    };
+
+    const handleEditSession = async (sessionId) => {
+      try {
+        const { data, error } = await supabase
+          .from('qc_sessions')
+          .select(`
+            *,
+            binary_scores(*),
+            category_scores(*)
+          `)
+          .eq('id', sessionId)
+          .single();
+
+        if (error) throw error;
+
+        // Populate edit form with existing data
+        const editData = {
+          property_address: data.property_address || '',
+          lead_status: data.lead_status || 'Active',
+          call_date: data.call_date || '',
+          call_time: data.call_time || '',
+          final_comment: data.final_comment || '',
+        };
+
+        // Add binary scores
+        if (data.binary_scores && data.binary_scores.length > 0) {
+          const binaryData = data.binary_scores[0];
+          editData.intro = binaryData.intro;
+          editData.first_ask = binaryData.first_ask;
+          editData.property_condition = binaryData.property_condition;
+        }
+
+        // Add category scores
+        if (data.category_scores && data.category_scores.length > 0) {
+          const categoryData = data.category_scores[0];
+          editData.bonding_rapport = categoryData.bonding_rapport;
+          editData.bonding_rapport_comment = categoryData.bonding_rapport_comment || '';
+          editData.magic_problem = categoryData.magic_problem;
+          editData.magic_problem_comment = categoryData.magic_problem_comment || '';
+          editData.second_ask = categoryData.second_ask;
+          editData.second_ask_comment = categoryData.second_ask_comment || '';
+          editData.objection_handling = categoryData.objection_handling;
+          editData.objection_handling_comment = categoryData.objection_handling_comment || '';
+          editData.closing_offer_presentation = categoryData.closing_offer_presentation;
+          editData.closing_offer_comment = categoryData.closing_offer_comment || '';
+          editData.closing_motivation = categoryData.closing_motivation;
+          editData.closing_motivation_comment = categoryData.closing_motivation_comment || '';
+          editData.closing_objections = categoryData.closing_objections;
+          editData.closing_objections_comment = categoryData.closing_objections_comment || '';
+        }
+
+        setEditFormData(editData);
+        setEditingSession(sessionId);
+        setShowEditModal(true);
+      } catch (error) {
+        console.error('Error loading session for edit:', error);
+        alert('Error loading session data');
+      }
+    };
+
+    const handleSaveEdit = async () => {
+      try {
+        // Update QC session
+        const { error: sessionError } = await supabase
+          .from('qc_sessions')
+          .update({
+            property_address: editFormData.property_address,
+            lead_status: editFormData.lead_status,
+            call_date: editFormData.call_date,
+            call_time: editFormData.call_time,
+            final_comment: editFormData.final_comment
+          })
+          .eq('id', editingSession);
+
+        if (sessionError) throw sessionError;
+
+        // Update binary scores
+        const { error: binaryError } = await supabase
+          .from('binary_scores')
+          .update({
+            intro: editFormData.intro,
+            first_ask: editFormData.first_ask,
+            property_condition: editFormData.property_condition
+          })
+          .eq('session_id', editingSession);
+
+        if (binaryError) throw binaryError;
+
+        // Update category scores
+        const { error: categoryError } = await supabase
+          .from('category_scores')
+          .update({
+            bonding_rapport: editFormData.bonding_rapport,
+            bonding_rapport_comment: editFormData.bonding_rapport_comment,
+            magic_problem: editFormData.magic_problem,
+            magic_problem_comment: editFormData.magic_problem_comment,
+            second_ask: editFormData.second_ask,
+            second_ask_comment: editFormData.second_ask_comment,
+            objection_handling: editFormData.objection_handling,
+            objection_handling_comment: editFormData.objection_handling_comment,
+            closing_offer_presentation: editFormData.closing_offer_presentation,
+            closing_offer_comment: editFormData.closing_offer_comment,
+            closing_motivation: editFormData.closing_motivation,
+            closing_motivation_comment: editFormData.closing_motivation_comment,
+            closing_objections: editFormData.closing_objections,
+            closing_objections_comment: editFormData.closing_objections_comment
+          })
+          .eq('session_id', editingSession);
+
+        if (categoryError) throw categoryError;
+
+        // Recalculate overall score
+        const binaryScores = {
+          intro: editFormData.intro,
+          first_ask: editFormData.first_ask,
+          property_condition: editFormData.property_condition
+        };
+
+        const categoryScores = {
+          bonding_rapport: editFormData.bonding_rapport,
+          magic_problem: editFormData.magic_problem,
+          second_ask: editFormData.second_ask,
+          objection_handling: editFormData.objection_handling,
+          closing_offer_presentation: editFormData.closing_offer_presentation,
+          closing_motivation: editFormData.closing_motivation,
+          closing_objections: editFormData.closing_objections
+        };
+
+        const newOverallScore = calculateOverallScore(binaryScores, categoryScores);
+
+        // Update overall score
+        await supabase
+          .from('qc_sessions')
+          .update({ overall_score: newOverallScore })
+          .eq('id', editingSession);
+
+        setShowEditModal(false);
+        alert('Session updated successfully!');
+        await fetchAgentsData(); // Refresh data
+      } catch (error) {
+        console.error('Error updating session:', error);
+        alert('Error updating session');
+      }
+    };
+
+    const handleDeleteSession = async (sessionId) => {
+      if (!window.confirm('Are you sure you want to delete this QC session?')) {
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('qc_sessions')
+          .delete()
+          .eq('id', sessionId);
+
+        if (error) throw error;
+        alert('QC Session deleted successfully');
+        await fetchAgentsData();
+      } catch (error) {
+        console.error('Error deleting session:', error);
+        alert('Error deleting session');
+      }
+    };
+
+    const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
+    const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
+    const pendingCalls = agentSessions.filter(session => session.lead_status === 'Pending').length;
+    const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;
+
+    const EditModal = () => (
+      showEditModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            maxWidth: '800px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            width: '90%'
+          }}>
+            <h2>Edit QC Session</h2>
+            
+            <div className="edit-form">
+              {/* Call Details */}
+              <h3>Call Details</h3>
+              <input
+                type="text"
+                placeholder="Property Address"
+                value={editFormData.property_address || ''}
+                onChange={(e) => setEditFormData({...editFormData, property_address: e.target.value})}
+                style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
+              />
+              
+              <select
+                value={editFormData.lead_status || 'Active'}
+                onChange={(e) => setEditFormData({...editFormData, lead_status: e.target.value})}
+                style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
+              >
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Dead">Dead</option>
+              </select>
+
+              {/* Binary Questions */}
+              <h3>Binary Questions</h3>
+              {binaryQuestions.map((question) => (
+                <div key={question.key} style={{ margin: '1rem 0' }}>
+                  <label>{question.text}</label>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setEditFormData({...editFormData, [question.key]: true})}
+                      style={{
+                        backgroundColor: editFormData[question.key] === true ? 'green' : 'gray',
+                        color: 'white',
+                        margin: '0 0.25rem',
+                        padding: '0.25rem 0.5rem'
+                      }}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditFormData({...editFormData, [question.key]: false})}
+                      style={{
+                        backgroundColor: editFormData[question.key] === false ? 'red' : 'gray',
+                        color: 'white',
+                        margin: '0 0.25rem',
+                        padding: '0.25rem 0.5rem'
+                      }}
+                    >
+                      No
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditFormData({...editFormData, [question.key]: null})}
+                      style={{
+                        backgroundColor: editFormData[question.key] === null ? 'orange' : 'gray',
+                        color: 'white',
+                        margin: '0 0.25rem',
+                        padding: '0.25rem 0.5rem'
+                      }}
+                    >
+                      N/A
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Category Ratings */}
+              <h3>Category Ratings (1-5)</h3>
+              {ratedQuestions.map((question) => (
+                <div key={question.key} style={{ margin: '1rem 0' }}>
+                  <label>{question.category}</label>
+                  <div>
+                    {[1,2,3,4,5].map(score => (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => setEditFormData({...editFormData, [question.key]: score})}
+                        style={{
+                          backgroundColor: editFormData[question.key] === score ? 'blue' : 'gray',
+                          color: 'white',
+                          margin: '0 0.25rem',
+                          padding: '0.25rem 0.5rem'
+                        }}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder="Comments..."
+                    value={editFormData[`${question.key}_comment`] || ''}
+                    onChange={(e) => setEditFormData({...editFormData, [`${question.key}_comment`]: e.target.value})}
+                    style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
+                    rows="2"
+                  />
+                </div>
+              ))}
+
+              {/* Closing Questions */}
+              <h3>Closing Questions</h3>
+              {closingQuestions.map((question) => (
+                <div key={question.key} style={{ margin: '1rem 0' }}>
+                  <label>{question.text} ({Math.round(question.weight * 100)}% weight)</label>
+                  <div>
+                    {[1,2,3,4,5].map(score => (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => setEditFormData({...editFormData, [question.key]: score})}
+                        style={{
+                          backgroundColor: editFormData[question.key] === score ? 'blue' : 'gray',
+                          color: 'white',
+                          margin: '0 0.25rem',
+                          padding: '0.25rem 0.5rem'
+                        }}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder="Comments..."
+                    value={editFormData[`${question.key}_comment`] || ''}
+                    onChange={(e) => setEditFormData({...editFormData, [`${question.key}_comment`]: e.target.value})}
+                    style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
+                    rows="2"
+                  />
+                </div>
+              ))}
+
+              {/* Final Comment */}
+              <h3>Final Comment</h3>
+              <textarea
+                placeholder="Overall comments..."
+                value={editFormData.final_comment || ''}
+                onChange={(e) => setEditFormData({...editFormData, final_comment: e.target.value})}
+                style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
+                rows="3"
+              />
+            </div>
+
+            <div style={{ marginTop: '2rem', textAlign: 'right' }}>
+              <button 
+                onClick={() => setShowEditModal(false)}
+                style={{ 
+                  marginRight: '1rem', 
+                  padding: '0.5rem 1rem',
+                  backgroundColor: 'gray',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveEdit}
+                style={{ 
+                  padding: '0.5rem 1rem',
+                  backgroundColor: 'blue',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px'
+                }}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    );
 
     return (
       <div className="app-container">
-      <div className="app-header">
-        <div className="header-content">
-        <button 
-          onClick={() => setCurrentView('reporting')}
-          className="back-button"
-        >
-          <ArrowLeft className="back-icon" />
-        </button>
-        <Home className="header-icon" />
-        <div>
-          <h1 className="header-title">
-          {new Date().toLocaleDateString('en-US', { 
-            month: 'long', 
-            day: 'numeric' 
-          }).toUpperCase()} - QC Session | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
-          </h1>
-          <div className="lead-breakdown">
-          <span className="breakdown-item">📊 Lead Breakdown:</span>
-          <span className="breakdown-status active">🟢 Active {activeCalls}</span>
-          <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
-          <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
+        <div className="app-header">
+          <div className="header-content">
+            <button 
+              onClick={() => setCurrentView('reporting')}
+              className="back-button"
+            >
+              <ArrowLeft className="back-icon" />
+            </button>
+            <Home className="header-icon" />
+            <div>
+              <h1 className="header-title">
+                {new Date().toLocaleDateString('en-US', { 
+                  month: 'long', 
+                  day: 'numeric' 
+                }).toUpperCase()} - QC Session | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
+              </h1>
+              <div className="lead-breakdown">
+                <span className="breakdown-item">📊 Lead Breakdown:</span>
+                <span className="breakdown-status active">🟢 Active {activeCalls}</span>
+                <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
+                <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
+              </div>
+            </div>
           </div>
-        </div>
-        </div>
-      </div>
-
-      <div className="main-content">
-        <div className="qc-section">
-        <h2 className="qc-title">📞 Call Details</h2>
-        <div 
-          key={session.id} 
-          className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
-          onClick={() => handleSessionClick(session.id)}
-          style={{ cursor: 'pointer' }}
-        > 
-          <div className="qc-call-header">
-          <span className="qc-call-title">Session {index + 1} - {session.overall_score}%</span>
-          </div>
-          <div className="qc-call-address">📍 {session.property_address}</div>
-          <div className="qc-call-time">🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)</div>
-        </div>
         </div>
 
-        {Object.entries(selectedAgent.scores).map(([category, score]) => (
-        <div key={category} className="category-section">
-          <div className="category-header">
-          <span className="category-icon">
-            {category === 'Bonding & Rapport' && '🤝'}
-            {category === 'Magic Problem' && '🔍'}
-            {category === 'Second Ask' && '❓'}
-            {category === 'Objection Handling' && '⚡'}
-            {category === 'Closing' && '🎯'}
-          </span>
-          <h3 className="category-title">{category} ({score}%)</h3>
+        <div className="main-content">
+          <div className="qc-section">
+            <h2 className="qc-title">📞 Call Details</h2>
+            <div className="qc-calls-grid">
+              {agentSessions.map((session, index) => (
+                <div 
+                  key={session.id} 
+                  className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
+                  onClick={() => handleSessionClick(session.id)}
+                  style={{ cursor: 'pointer', position: 'relative' }}
+                >
+                  <div className="qc-call-header">
+                    <span className="qc-call-title">Session {index + 1} - {session.overall_score}%</span>
+                    <div className="session-actions" style={{ position: 'absolute', top: '0.5rem', right: '0.5rem' }}>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditSession(session.id);
+                        }}
+                        className="edit-btn"
+                        style={{ 
+                          marginRight: '0.5rem',
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: 'orange',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSession(session.id);
+                        }}
+                        className="delete-btn"
+                        style={{ 
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: 'red',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div className="qc-call-address">📍 {session.property_address}</div>
+                  <div className="qc-call-time">🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)</div>
+                </div>
+              ))}
+            </div>
           </div>
-          
-          <div className="coaching-insight">
-          <span className="insight-icon">💡</span>
-          <span className="insight-text">
-            <strong>QC Comment Summaries:</strong> 
-            {generateQCCommentSummary(category, selectedAgent.id)}
-          </span>
-          </div>
-        </div>
-        ))}
 
-        <div className="claude-section">
-        <div className="claude-header">
-          <div className="claude-avatar">C</div>
-          <h3 className="claude-title">Claude's Clever Comment</h3>
+          {Object.entries(selectedAgent.scores).map(([category, score]) => (
+            <div key={category} className="category-section">
+              <div className="category-header">
+                <span className="category-icon">
+                  {category === 'Bonding & Rapport' && '🤝'}
+                  {category === 'Magic Problem' && '🔍'}
+                  {category === 'Second Ask' && '❓'}
+                  {category === 'Objection Handling' && '⚡'}
+                  {category === 'Closing' && '🎯'}
+                </span>
+                <h3 className="category-title">{category} ({score}%)</h3>
+              </div>
+              
+              <div className="coaching-insight">
+                <span className="insight-icon">💡</span>
+                <span className="insight-text">
+                  <strong>QC Comment Summaries:</strong> 
+                  {generateQCCommentSummary(category, selectedAgent.id)}
+                </span>
+              </div>
+            </div>
+          ))}
+
+          <div className="claude-section">
+            <div className="claude-header">
+              <div className="claude-avatar">C</div>
+              <h3 className="claude-title">Claude's Clever Comment</h3>
+            </div>
+            
+            <div className="claude-comment">
+              <p className="claude-text">
+                "{selectedAgent.name}'s showing real promise with some standout strengths! 
+                {Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).length > 0 && 
+                  ` Absolutely crushing it in ${Object.entries(selectedAgent.scores)
+                    .filter(([_, score]) => score >= 90)
+                    .map(([category]) => category)
+                    .join(' and ')} with ${Math.max(...Object.values(selectedAgent.scores))}% - that's elite territory!`
+                }
+                {selectedAgent.overallScore >= 80 ? 
+                  ` With an ${selectedAgent.overallScore}% overall, they're consistently delivering quality calls. ` :
+                  selectedAgent.overallScore >= 70 ?
+                  ` At ${selectedAgent.overallScore}% overall, they're building solid momentum. ` :
+                  ` At ${selectedAgent.overallScore}% overall, there's clear growth opportunity. `
+                }
+                The data shows focusing on 
+                {Object.entries(selectedAgent.scores)
+                  .filter(([_, score]) => score < 70)
+                  .map(([category]) => category)
+                  .slice(0, 2)
+                  .join(' and ') || 'maintaining current performance'} 
+                could unlock their next level!"
+              </p>
+            </div>
+          </div>
+
+          {showEditModal && <EditModal />}
         </div>
-        
-        <div className="claude-comment">
-          <p className="claude-text">
-          "{selectedAgent.name}'s showing real promise with some standout strengths! 
-          {Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).length > 0 && 
-            ` Absolutely crushing it in ${Object.entries(selectedAgent.scores)
-            .filter(([_, score]) => score >= 90)
-            .map(([category]) => category)
-            .join(' and ')} with ${Math.max(...Object.values(selectedAgent.scores))}% - that's elite territory!`
-          }
-          {selectedAgent.overallScore >= 80 ? 
-            ` With an ${selectedAgent.overallScore}% overall, they're consistently delivering quality calls. ` :
-            selectedAgent.overallScore >= 70 ?
-            ` At ${selectedAgent.overallScore}% overall, they're building solid momentum. ` :
-            ` At ${selectedAgent.overallScore}% overall, there's clear growth opportunity. `
-          }
-          The data shows focusing on 
-          {Object.entries(selectedAgent.scores)
-            .filter(([_, score]) => score < 70)
-            .map(([category]) => category)
-            .slice(0, 2)
-            .join(' and ') || 'maintaining current performance'} 
-          could unlock their next level!"
-          </p>
-        </div>
-        </div>
-      </div>
       </div>
     );
   };
@@ -920,31 +1333,32 @@ const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead'
         [skillsKey]: prev[skillsKey].filter((_, index) => index !== skillIndex)
       }));
     };
+
     const updateSkillUsage = async (skillId) => {
-  await supabase
-    .from('skills_library')
-    .update({ usage_count: supabase.raw('usage_count + 1') })
-    .eq('id', skillId);
-};
+      await supabase
+        .from('skills_library')
+        .update({ usage_count: supabase.raw('usage_count + 1') })
+        .eq('id', skillId);
+    };
 
-const saveNewSkill = async (skillText, category) => {
-  await supabase
-    .from('skills_library')
-    .insert([{
-      skill_text: skillText,
-      category: category,
-      usage_count: 1
-    }]);
-  await fetchSkillsLibrary(); // Refresh the library
-};
+    const saveNewSkill = async (skillText, category) => {
+      await supabase
+        .from('skills_library')
+        .insert([{
+          skill_text: skillText,
+          category: category,
+          usage_count: 1
+        }]);
+      await fetchSkillsLibrary(); // Refresh the library
+    };
 
-const removeSkillByText = (category, skillText) => {
-  const skillsKey = `${category}_skills`;
-  setFormData(prev => ({
-    ...prev,
-    [skillsKey]: prev[skillsKey].filter(skill => skill !== skillText)
-  }));
-};
+    const removeSkillByText = (category, skillText) => {
+      const skillsKey = `${category}_skills`;
+      setFormData(prev => ({
+        ...prev,
+        [skillsKey]: prev[skillsKey].filter(skill => skill !== skillText)
+      }));
+    };
 
     /* ========== N/A FUNCTIONALITY SECTION ========== */
     const handleNAToggle = (field) => {
@@ -991,31 +1405,31 @@ const removeSkillByText = (category, skillText) => {
             </button>
             <button 
               onClick={async () => {
-  try {
-    // Save each training example
-    for (let index = 0; index < trainingData.categories.length; index++) {
-      const category = trainingData.categories[index];
-      const timestampInput = document.querySelectorAll('.timestamp-input input')[index];
-      
-      await supabase.from('training_examples').insert([{
-        agent_id: selectedAgentToScore,
-        category: category.category,
-        score: category.score,
-        qc_comment: category.comment,
-        property_address: trainingData.propertyAddress,
-        call_date: trainingData.callDate,
-        call_time: trainingData.callTime,
-        timestamp_start: timestampInput?.value || ''
-      }]);
-    }
-    
-    setShowTrainingRedirect(false);
-    alert('Training examples saved to library!');
-  } catch (error) {
-    console.error('Error saving training examples:', error);
-    alert('Error saving training examples');
-  }
-}}
+                try {
+                  // Save each training example
+                  for (let index = 0; index < trainingData.categories.length; index++) {
+                    const category = trainingData.categories[index];
+                    const timestampInput = document.querySelectorAll('.timestamp-input input')[index];
+                    
+                    await supabase.from('training_examples').insert([{
+                      agent_id: selectedAgentToScore,
+                      category: category.category,
+                      score: category.score,
+                      qc_comment: category.comment,
+                      property_address: trainingData.propertyAddress,
+                      call_date: trainingData.callDate,
+                      call_time: trainingData.callTime,
+                      timestamp_start: timestampInput?.value || ''
+                    }]);
+                  }
+                  
+                  setShowTrainingRedirect(false);
+                  alert('Training examples saved to library!');
+                } catch (error) {
+                  console.error('Error saving training examples:', error);
+                  alert('Error saving training examples');
+                }
+              }}
               className="btn-primary"
             >
               Save Training Examples
@@ -1024,91 +1438,6 @@ const removeSkillByText = (category, skillText) => {
         </div>
       </div>
     );
-
-    /* ========== EDIT/DELETE FUNCTIONALITY SECTION ========== */
-    const [editingSession, setEditingSession] = useState(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-
-    const handleEditSession = async (sessionId) => {
-      try {
-        const { data, error } = await supabase
-          .from('qc_sessions')
-          .select(`
-            *,
-            binary_scores(*),
-            category_scores(*)
-          `)
-          .eq('id', sessionId)
-          .single();
-
-        if (error) throw error;
-
-        // Populate form with existing data for editing
-        if (data.binary_scores && data.binary_scores.length > 0) {
-          const binaryData = data.binary_scores[0];
-          setFormData(prev => ({
-            ...prev,
-            intro: binaryData.intro,
-            first_ask: binaryData.first_ask,
-            property_condition: binaryData.property_condition
-          }));
-        }
-
-        if (data.category_scores && data.category_scores.length > 0) {
-          const categoryData = data.category_scores[0];
-          setFormData(prev => ({
-            ...prev,
-            bonding_rapport: categoryData.bonding_rapport,
-            bonding_rapport_comment: categoryData.bonding_rapport_comment || '',
-            magic_problem: categoryData.magic_problem,
-            magic_problem_comment: categoryData.magic_problem_comment || '',
-            second_ask: categoryData.second_ask,
-            second_ask_comment: categoryData.second_ask_comment || '',
-            objection_handling: categoryData.objection_handling,
-            objection_handling_comment: categoryData.objection_handling_comment || '',
-            closing_offer_presentation: categoryData.closing_offer_presentation,
-            closing_offer_comment: categoryData.closing_offer_comment || '',
-            closing_motivation: categoryData.closing_motivation,
-            closing_motivation_comment: categoryData.closing_motivation_comment || '',
-            closing_objections: categoryData.closing_objections,
-            closing_objections_comment: categoryData.closing_objections_comment || '',
-            property_address: data.property_address || '',
-            lead_status: data.lead_status || 'Active',
-            call_date: data.call_date || '',
-            call_time: data.call_time || '',
-            final_comment: data.final_comment || ''
-          }));
-        }
-
-        setEditingSession(sessionId);
-        setShowEditModal(true);
-      } catch (error) {
-        console.error('Error loading session for edit:', error);
-        alert('Error loading session data');
-      }
-    };
-
-    // eslint-disable-next-line no-unused-vars
-    const handleDeleteSession = async (sessionId) => {
-      if (!window.confirm('Are you sure you want to delete this QC session?')) {
-        return;
-      }
-
-      try {
-        const { error } = await supabase
-          .from('qc_sessions')
-          .delete()
-          .eq('id', sessionId);
-
-        if (error) throw error;
-
-        alert('QC Session deleted successfully');
-        await fetchAgentsData();
-      } catch (error) {
-        console.error('Error deleting session:', error);
-        alert('Error deleting session');
-      }
-    };
 
     /* ========== QC SCORING FORM RENDER SECTION ========== */
     return (
@@ -1244,7 +1573,7 @@ const removeSkillByText = (category, skillText) => {
                   >
                     <option value="">Min</option>
                     {Array.from({length: 60}, (_, i) => i.toString().padStart(2, '0')).map(min => (
-                    <option key={min} value={min}>{min}</option>
+                      <option key={min} value={min}>{min}</option>
                     ))}
                   </select>
                   
@@ -1352,50 +1681,50 @@ const removeSkillByText = (category, skillText) => {
 
                   {/* Skills Section */}
                   <div className="skills-section">
-  <label>Skills & Techniques Used:</label>
-  
-  <div className="skills-library">
-    <h5>Quick Select (Common Skills):</h5>
-    <div className="skills-checkboxes">
-      {skillsLibrary.filter(skill => skill.category === question.key || skill.category === 'general').map(skill => (
-        <label key={skill.id} className="skill-checkbox">
-          <input
-            type="checkbox"
-            checked={formData[`${question.key}_skills`].includes(skill.skill_text)}
-            onChange={(e) => {
-              if (e.target.checked) {
-                addSkill(question.key, skill.skill_text);
-                updateSkillUsage(skill.id);
-              } else {
-                removeSkillByText(question.key, skill.skill_text);
-              }
-            }}
-          />
-          {skill.skill_text}
-          <span className="usage-count">({skill.usage_count})</span>
-        </label>
-      ))}
-    </div>
-  </div>
-  
-  <div className="skills-input-group">
-    <input
-      type="text"
-      placeholder="Add new skill or technique..."
-      onKeyPress={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          if (e.target.value.trim()) {
-            addSkill(question.key, e.target.value.trim());
-            saveNewSkill(e.target.value.trim(), question.key);
-            e.target.value = '';
-          }
-        }
-      }}
-      className="skills-input"
-    />
-  </div>
+                    <label>Skills & Techniques Used:</label>
                     
+                    <div className="skills-library">
+                      <h5>Quick Select (Common Skills):</h5>
+                      <div className="skills-checkboxes">
+                        {skillsLibrary.filter(skill => skill.category === question.key || skill.category === 'general').map(skill => (
+                          <label key={skill.id} className="skill-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={formData[`${question.key}_skills`].includes(skill.skill_text)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  addSkill(question.key, skill.skill_text);
+                                  updateSkillUsage(skill.id);
+                                } else {
+                                  removeSkillByText(question.key, skill.skill_text);
+                                }
+                              }}
+                            />
+                            {skill.skill_text}
+                            <span className="usage-count">({skill.usage_count})</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="skills-input-group">
+                      <input
+                        type="text"
+                        placeholder="Add new skill or technique..."
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (e.target.value.trim()) {
+                              addSkill(question.key, e.target.value.trim());
+                              saveNewSkill(e.target.value.trim(), question.key);
+                              e.target.value = '';
+                            }
+                          }
+                        }}
+                        className="skills-input"
+                      />
+                    </div>
+                        
                     <div className="skills-tags">
                       {formData[`${question.key}_skills`].map((skill, index) => (
                         <span key={index} className="skill-tag">
