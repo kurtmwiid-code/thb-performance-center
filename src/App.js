@@ -1206,17 +1206,7 @@ const SessionDetailModal = () => {
           <Home className="header-icon" />
           <div>
  <h1 className="header-title">
-  {agentSessions.length > 0 && agentSessions[0].qc_agents?.name ? 
-    `${agentSessions[0].qc_agents.name.toUpperCase()}'S ${new Date().toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric' 
-    }).toUpperCase()} - QC Session | ${selectedAgent.name} - ${selectedAgent.overallScore}% Overall`
-    :
-    `${new Date().toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric' 
-    }).toUpperCase()} - QC Session | ${selectedAgent.name} - ${selectedAgent.overallScore}% Overall`
-  }
+  QC SESSIONS | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
 </h1>
             <div className="lead-breakdown">
               <span className="breakdown-item">📊 Lead Breakdown:</span>
