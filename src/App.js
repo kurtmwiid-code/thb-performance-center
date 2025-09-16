@@ -244,13 +244,28 @@ const overallScore = (avgBonding + avgMagic + avgSecond + avgClosing) / 4; // Di
   };
 
   /* ========== UTILITY FUNCTIONS SECTION ========== */
-  const teamData = {
-    averageScore: agents.length > 0 ? Math.round(agents.reduce((sum, agent) => sum + agent.overallScore, 0) / agents.length * 10) / 10 : 0,
-    trend: 2.3,
-    topRep: agents.length > 0 ? agents.reduce((prev, current) => prev.overallScore > current.overallScore ? prev : current) : { name: 'No data', score: 0 },
-    mostImproved: { name: 'Calculating...', improvement: 0 },
-    teamStrength: { category: 'Bonding & Rapport', score: 87.3 }
-  };
+const teamData = {
+  averageScore: agents.length > 0 ? Math.round(agents.reduce((sum, agent) => sum + agent.overallScore, 0) / agents.length * 10) / 10 : 0,
+  trend: 2.3,
+  topRep: agents.length > 0 ? agents.reduce((prev, current) => prev.overallScore > current.overallScore ? prev : current) : { name: 'No data', score: 0 },
+  mostImproved: { name: 'Calculating...', improvement: 0 },
+  teamStrength: (() => {
+    if (agents.length === 0) return { category: 'No data', score: 0 };
+    
+    const categoryAverages = {
+      'Bonding & Rapport': agents.reduce((sum, agent) => sum + (agent.scores['Bonding & Rapport'] || 0), 0) / agents.length,
+      'Magic Problem': agents.reduce((sum, agent) => sum + (agent.scores['Magic Problem'] || 0), 0) / agents.length,
+      'Second Ask': agents.reduce((sum, agent) => sum + (agent.scores['Second Ask'] || 0), 0) / agents.length,
+      'Closing': agents.reduce((sum, agent) => sum + (agent.scores['Closing'] || 0), 0) / agents.length
+    };
+    
+    const strongest = Object.entries(categoryAverages).reduce((prev, current) => 
+      current[1] > prev[1] ? current : prev
+    );
+    
+    return { category: strongest[0], score: Math.round(strongest[1] * 10) / 10 };
+  })()
+};
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -497,13 +512,35 @@ const overallScore = (avgBonding + avgMagic + avgSecond + avgClosing) / 4; // Di
 
   /* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
 const DeepDiveView = () => {
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [showSessionDetail, setShowSessionDetail] = useState(false);
-  const [editingSession, setEditingSession] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editFormData, setEditFormData] = useState({});
+ const [selectedSession, setSelectedSession] = useState(null);
+const [showSessionDetail, setShowSessionDetail] = useState(false);
+const [editingSession, setEditingSession] = useState(null);
+const [showEditModal, setShowEditModal] = useState(false);
+const [editFormData, setEditFormData] = useState({});
 
-  const handleSessionClick = async (sessionId) => {
+// Add ESC key listener for edit modal
+useEffect(() => {
+  const handleEscKey = (event) => {
+    if (event.key === 'Escape') {
+      if (showEditModal) {
+        setShowEditModal(false);
+      }
+      if (showSessionDetail) {
+        setShowSessionDetail(false);
+      }
+    }
+  };
+
+  if (showEditModal || showSessionDetail) {
+    document.addEventListener('keydown', handleEscKey);
+  }
+
+  return () => {
+    document.removeEventListener('keydown', handleEscKey);
+  };
+}, [showEditModal, showSessionDetail]);
+
+const handleSessionClick = async (sessionId) => {
     try {
       const { data, error } = await supabase
         .from('qc_sessions')
@@ -943,204 +980,218 @@ const SessionDetailModal = () => {
   );
 };
 
-  const EditModal = () => (
-    showEditModal && (
-      <div className="modal-overlay" style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        zIndex: 1000,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
+ const EditModal = () => (
+  showEditModal && (
+    <div className="modal-overlay" style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.9)',
+      zIndex: 1000,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      <div className="modal-content" style={{
+        backgroundColor: '#1a1a1a',
+        color: '#ffffff',
+        padding: '2rem',
+        borderRadius: '12px',
+        maxWidth: '900px',
+        maxHeight: '85vh',
+        overflow: 'auto',
+        width: '95%',
+        border: '1px solid #333'
       }}>
-        <div className="modal-content" style={{
-          backgroundColor: 'white',
-          padding: '2rem',
-          borderRadius: '8px',
-          maxWidth: '800px',
-          maxHeight: '80vh',
-          overflow: 'auto',
-          width: '90%'
-        }}>
-          <h2>Edit QC Session</h2>
+        <h2 style={{ color: '#ffffff', marginBottom: '2rem' }}>Edit QC Session</h2>
+        
+        <div className="edit-form">
+          {/* Call Details */}
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Call Details</h3>
+          <input
+            type="text"
+            placeholder="Property Address"
+            value={editFormData.property_address || ''}
+            onChange={(e) => setEditFormData({...editFormData, property_address: e.target.value})}
+            style={{ 
+              width: '100%', 
+              margin: '0.5rem 0', 
+              padding: '0.75rem',
+              backgroundColor: '#2a2a2a',
+              color: '#ffffff',
+              border: '1px solid #444',
+              borderRadius: '6px'
+            }}
+          />
           
-          <div className="edit-form">
-            {/* Call Details */}
-            <h3>Call Details</h3>
-            <input
-              type="text"
-              placeholder="Property Address"
-              value={editFormData.property_address || ''}
-              onChange={(e) => setEditFormData({...editFormData, property_address: e.target.value})}
-              style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
-            />
-            
-            <select
-              value={editFormData.lead_status || 'Active'}
-              onChange={(e) => setEditFormData({...editFormData, lead_status: e.target.value})}
-              style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
-            >
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Dead">Dead</option>
-            </select>
+          <select
+            value={editFormData.lead_status || 'Active'}
+            onChange={(e) => setEditFormData({...editFormData, lead_status: e.target.value})}
+            style={{ 
+              width: '100%', 
+              margin: '0.5rem 0', 
+              padding: '0.75rem',
+              backgroundColor: '#2a2a2a',
+              color: '#ffffff',
+              border: '1px solid #444',
+              borderRadius: '6px'
+            }}
+          >
+            <option value="Active">Active</option>
+            <option value="Pending">Pending</option>
+            <option value="Dead">Dead</option>
+          </select>
 
-            {/* Binary Questions */}
-            <h3>Binary Questions</h3>
-            {binaryQuestions.map((question) => (
-              <div key={question.key} style={{ margin: '1rem 0' }}>
-                <label>{question.text}</label>
-                <div>
+          {/* Binary Questions */}
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Binary Questions</h3>
+          {binaryQuestions.map((question) => (
+            <div key={question.key} style={{ margin: '1.5rem 0', padding: '1rem', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
+              <label style={{ color: '#ffffff', display: 'block', marginBottom: '0.75rem' }}>{question.text}</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditFormData({...editFormData, [question.key]: true})}
+                  style={{
+                    backgroundColor: editFormData[question.key] === true ? '#22c55e' : '#374151',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditFormData({...editFormData, [question.key]: false})}
+                  style={{
+                    backgroundColor: editFormData[question.key] === false ? '#ef4444' : '#374151',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditFormData({...editFormData, [question.key]: null})}
+                  style={{
+                    backgroundColor: editFormData[question.key] === null ? '#f59e0b' : '#374151',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  N/A
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Category Ratings */}
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Category Ratings (1-5)</h3>
+          {ratedQuestions.map((question) => (
+            <div key={question.key} style={{ margin: '1.5rem 0', padding: '1rem', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
+              <label style={{ color: '#ffffff', display: 'block', marginBottom: '0.75rem' }}>{question.category}</label>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                {[1,2,3,4,5].map(score => (
                   <button
+                    key={score}
                     type="button"
-                    onClick={() => setEditFormData({...editFormData, [question.key]: true})}
+                    onClick={() => setEditFormData({...editFormData, [question.key]: score})}
                     style={{
-                      backgroundColor: editFormData[question.key] === true ? 'green' : 'gray',
+                      backgroundColor: editFormData[question.key] === score ? '#3b82f6' : '#374151',
                       color: 'white',
-                      margin: '0 0.25rem',
-                      padding: '0.25rem 0.5rem'
+                      padding: '0.5rem 1rem',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      minWidth: '40px'
                     }}
                   >
-                    Yes
+                    {score}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditFormData({...editFormData, [question.key]: false})}
-                    style={{
-                      backgroundColor: editFormData[question.key] === false ? 'red' : 'gray',
-                      color: 'white',
-                      margin: '0 0.25rem',
-                      padding: '0.25rem 0.5rem'
-                    }}
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditFormData({...editFormData, [question.key]: null})}
-                    style={{
-                      backgroundColor: editFormData[question.key] === null ? 'orange' : 'gray',
-                      color: 'white',
-                      margin: '0 0.25rem',
-                      padding: '0.25rem 0.5rem'
-                    }}
-                  >
-                    N/A
-                  </button>
-                </div>
+                ))}
               </div>
-            ))}
+              <textarea
+                placeholder="Comments..."
+                value={editFormData[`${question.key}_comment`] || ''}
+                onChange={(e) => setEditFormData({...editFormData, [`${question.key}_comment`]: e.target.value})}
+                style={{ 
+                  width: '100%', 
+                  margin: '0.5rem 0', 
+                  padding: '0.75rem',
+                  backgroundColor: '#1a1a1a',
+                  color: '#ffffff',
+                  border: '1px solid #444',
+                  borderRadius: '6px',
+                  minHeight: '80px'
+                }}
+                rows="3"
+              />
+            </div>
+          ))}
 
-            {/* Category Ratings */}
-            <h3>Category Ratings (1-5)</h3>
-            {ratedQuestions.map((question) => (
-              <div key={question.key} style={{ margin: '1rem 0' }}>
-                <label>{question.category}</label>
-                <div>
-                  {[1,2,3,4,5].map(score => (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => setEditFormData({...editFormData, [question.key]: score})}
-                      style={{
-                        backgroundColor: editFormData[question.key] === score ? 'blue' : 'gray',
-                        color: 'white',
-                        margin: '0 0.25rem',
-                        padding: '0.25rem 0.5rem'
-                      }}
-                    >
-                      {score}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  placeholder="Comments..."
-                  value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => setEditFormData({...editFormData, [`${question.key}_comment`]: e.target.value})}
-                  style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
-                  rows="2"
-                />
-              </div>
-            ))}
-
-            {/* Closing Questions */}
-            <h3>Closing Questions</h3>
-            {closingQuestions.map((question) => (
-              <div key={question.key} style={{ margin: '1rem 0' }}>
-                <label>{question.text} ({Math.round(question.weight * 100)}% weight)</label>
-                <div>
-                  {[1,2,3,4,5].map(score => (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => setEditFormData({...editFormData, [question.key]: score})}
-                      style={{
-                        backgroundColor: editFormData[question.key] === score ? 'blue' : 'gray',
-                        color: 'white',
-                        margin: '0 0.25rem',
-                        padding: '0.25rem 0.5rem'
-                      }}
-                    >
-                      {score}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  placeholder="Comments..."
-                  value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => setEditFormData({...editFormData, [`${question.key}_comment`]: e.target.value})}
-                  style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
-                  rows="2"
-                />
-              </div>
-            ))}
-
-            {/* Final Comment */}
-            <h3>Final Comment</h3>
-            <textarea
-              placeholder="Overall comments..."
-              value={editFormData.final_comment || ''}
-              onChange={(e) => setEditFormData({...editFormData, final_comment: e.target.value})}
-              style={{ width: '100%', margin: '0.5rem 0', padding: '0.5rem' }}
-              rows="3"
-            />
-          </div>
-
-          <div style={{ marginTop: '2rem', textAlign: 'right' }}>
-            <button 
-              onClick={() => setShowEditModal(false)}
-              style={{ 
-                marginRight: '1rem', 
-                padding: '0.5rem 1rem',
-                backgroundColor: 'gray',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px'
-              }}
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleSaveEdit}
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: 'blue',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px'
-              }}
-            >
-              Save Changes
-            </button>
-          </div>
+          {/* Final Comment */}
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Final Comment</h3>
+          <textarea
+            placeholder="Overall comments..."
+            value={editFormData.final_comment || ''}
+            onChange={(e) => setEditFormData({...editFormData, final_comment: e.target.value})}
+            style={{ 
+              width: '100%', 
+              margin: '0.5rem 0', 
+              padding: '0.75rem',
+              backgroundColor: '#2a2a2a',
+              color: '#ffffff',
+              border: '1px solid #444',
+              borderRadius: '6px',
+              minHeight: '100px'
+            }}
+            rows="4"
+          />
         </div>
-      </div>
-    )
-  );
+
+       <div style={{ marginTop: '2rem', textAlign: 'right', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+  <button 
+    onClick={() => setShowEditModal(false)}
+    style={{ 
+      padding: '0.75rem 1.5rem',
+      backgroundColor: '#6b7280',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer'
+    }}
+  >
+    Cancel (ESC)
+  </button>
+  <button 
+    onClick={handleSaveEdit}
+    style={{ 
+      padding: '0.75rem 1.5rem',
+      backgroundColor: '#3b82f6',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer'
+    }}
+  >
+    Save Changes
+  </button>
+</div>
+</div>
+</div>
+)
+);
 
   return (
     <div className="app-container">
@@ -1154,7 +1205,7 @@ const SessionDetailModal = () => {
           </button>
           <Home className="header-icon" />
           <div>
-            <h1 className="header-title">
+ <h1 className="header-title">
   {agentSessions.length > 0 && agentSessions[0].qc_agents?.name ? 
     `${agentSessions[0].qc_agents.name.toUpperCase()}'S ${new Date().toLocaleDateString('en-US', { 
       month: 'long', 
@@ -1723,15 +1774,33 @@ const SessionDetailModal = () => {
           </div>
         </div>
 
-        {/* Success Message Overlay */}
-        {showSuccess && (
-          <div className="success-overlay">
-            <div className="success-message">
-              ✅ QC Session submitted successfully!
-            </div>
-          </div>
-        )}
-
+       {/* Success Message Overlay */}
+{showSuccess && (
+  <div className="success-overlay" style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    zIndex: 2000,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
+  }}>
+    <div className="success-message" style={{
+      backgroundColor: '#22c55e',
+      color: 'white',
+      padding: '2rem 3rem',
+      borderRadius: '12px',
+      fontSize: '24px',
+      fontWeight: 'bold',
+      textAlign: 'center'
+    }}>
+      QC EVALUATION SUBMITTED SUCCESSFULLY!
+    </div>
+  </div>
+)}
         {/* Training Library Redirect Modal */}
         {showTrainingRedirect && trainingData && <TrainingRedirectModal />}
 
