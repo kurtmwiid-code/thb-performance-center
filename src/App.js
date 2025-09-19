@@ -58,27 +58,47 @@ const closingQuestions = [
 /* ========== CALCULATION LOGIC SECTION ========== */
 const calculateOverallScore = (binaryScores, categoryScores) => {
   // Binary section (30% weight)
-  const binaryCount = Object.values(binaryScores).filter(score => score !== null).length;
-  const binaryYesCount = Object.values(binaryScores).filter(score => score === true).length;
+  const binaryValues = Object.values(binaryScores).filter(score => score !== null);
+  const binaryCount = binaryValues.length;
+  const binaryYesCount = binaryValues.filter(score => score === true).length;
   const binaryPercentage = binaryCount > 0 ? (binaryYesCount / binaryCount) * 100 : 100;
   const binaryWeighted = binaryPercentage * 0.3;
 
-  // Category section (70% weight)
+  // Category section (70% weight) - EXCLUDE NULL VALUES
   const categoryValues = [];
   
-  // Add individual category scores
-  if (categoryScores.bonding_rapport) categoryValues.push(categoryScores.bonding_rapport);
-  if (categoryScores.magic_problem) categoryValues.push(categoryScores.magic_problem);
-  if (categoryScores.second_ask) categoryValues.push(categoryScores.second_ask);
-  if (categoryScores.objection_handling) categoryValues.push(categoryScores.objection_handling);
+  // Add individual category scores (only if not null)
+  if (categoryScores.bonding_rapport !== null && categoryScores.bonding_rapport !== undefined) {
+    categoryValues.push(categoryScores.bonding_rapport);
+  }
+  if (categoryScores.magic_problem !== null && categoryScores.magic_problem !== undefined) {
+    categoryValues.push(categoryScores.magic_problem);
+  }
+  if (categoryScores.second_ask !== null && categoryScores.second_ask !== undefined) {
+    categoryValues.push(categoryScores.second_ask);
+  }
+  if (categoryScores.objection_handling !== null && categoryScores.objection_handling !== undefined) {
+    categoryValues.push(categoryScores.objection_handling);
+  }
   
-  // Calculate weighted closing score
-  if (categoryScores.closing_offer_presentation || categoryScores.closing_motivation || categoryScores.closing_objections) {
-    const closingScore = 
-      (categoryScores.closing_offer_presentation || 0) * 0.4 +
-      (categoryScores.closing_motivation || 0) * 0.4 +
-      (categoryScores.closing_objections || 0) * 0.2;
-    categoryValues.push(closingScore);
+  // Calculate weighted closing score (only if at least one closing score exists)
+  const closingScores = [];
+  if (categoryScores.closing_offer_presentation !== null && categoryScores.closing_offer_presentation !== undefined) {
+    closingScores.push({ score: categoryScores.closing_offer_presentation, weight: 0.4 });
+  }
+  if (categoryScores.closing_motivation !== null && categoryScores.closing_motivation !== undefined) {
+    closingScores.push({ score: categoryScores.closing_motivation, weight: 0.4 });
+  }
+  if (categoryScores.closing_objections !== null && categoryScores.closing_objections !== undefined) {
+    closingScores.push({ score: categoryScores.closing_objections, weight: 0.2 });
+  }
+  
+  // Only add closing average if at least one closing score exists
+  if (closingScores.length > 0) {
+    const totalWeight = closingScores.reduce((sum, item) => sum + item.weight, 0);
+    const weightedSum = closingScores.reduce((sum, item) => sum + (item.score * item.weight), 0);
+    const closingAverage = weightedSum / totalWeight;
+    categoryValues.push(closingAverage);
   }
   
   const categoryAverage = categoryValues.length > 0 ? 
@@ -88,7 +108,6 @@ const calculateOverallScore = (binaryScores, categoryScores) => {
 
   return Math.round((binaryWeighted + categoryWeighted) * 10) / 10;
 };
-
 /* ========== MAIN APP COMPONENT ========== */
 const App = () => {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -193,20 +212,44 @@ const App = () => {
         let totalBonding = 0, totalMagic = 0, totalSecond = 0;
 let totalClosing = 0;
 
-        agentSessions.forEach(session => {
+agentSessions.forEach(session => {
   if (session.category_scores && session.category_scores.length > 0) {
     const scores = session.category_scores[0];
-    totalBonding += scores.bonding_rapport || 0;
-    totalMagic += scores.magic_problem || 0;
-    totalSecond += scores.second_ask || 0;
-    // Skip objection_handling since you removed it
-    // totalObj += scores.objection_handling || 0;
     
-    const offerScore = scores.closing_offer_presentation || 0;
-    const motivationScore = scores.closing_motivation || 0;
-    const objectionScore = scores.closing_objections || 0;
-    const closingAvg = (offerScore * 0.4 + motivationScore * 0.4 + objectionScore * 0.2);
-    totalClosing += closingAvg;
+    // Only add scores that are not null
+    if (scores.bonding_rapport !== null && scores.bonding_rapport !== undefined) {
+      totalBonding += scores.bonding_rapport;
+    }
+    if (scores.magic_problem !== null && scores.magic_problem !== undefined) {
+      totalMagic += scores.magic_problem;
+    }
+    if (scores.second_ask !== null && scores.second_ask !== undefined) {
+      totalSecond += scores.second_ask;
+    }
+    
+    // Handle closing scores with null checking
+    const validClosingScores = [];
+    let totalClosingWeight = 0;
+    let weightedClosingSum = 0;
+    
+    if (scores.closing_offer_presentation !== null && scores.closing_offer_presentation !== undefined) {
+      weightedClosingSum += scores.closing_offer_presentation * 0.4;
+      totalClosingWeight += 0.4;
+    }
+    if (scores.closing_motivation !== null && scores.closing_motivation !== undefined) {
+      weightedClosingSum += scores.closing_motivation * 0.4;
+      totalClosingWeight += 0.4;
+    }
+    if (scores.closing_objections !== null && scores.closing_objections !== undefined) {
+      weightedClosingSum += scores.closing_objections * 0.2;
+      totalClosingWeight += 0.2;
+    }
+    
+    // Only add closing average if at least one closing score exists
+    if (totalClosingWeight > 0) {
+      const closingAvg = weightedClosingSum / totalClosingWeight;
+      totalClosing += closingAvg;
+    }
   }
 });
 
@@ -1014,7 +1057,10 @@ const SessionDetailModal = () => {
             type="text"
             placeholder="Property Address"
             value={editFormData.property_address || ''}
-            onChange={(e) => setEditFormData({...editFormData, property_address: e.target.value})}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setEditFormData(prev => ({...prev, property_address: newValue}));
+            }}
             style={{ 
               width: '100%', 
               margin: '0.5rem 0', 
@@ -1028,7 +1074,10 @@ const SessionDetailModal = () => {
           
           <select
             value={editFormData.lead_status || 'Active'}
-            onChange={(e) => setEditFormData({...editFormData, lead_status: e.target.value})}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setEditFormData(prev => ({...prev, lead_status: newValue}));
+            }}
             style={{ 
               width: '100%', 
               margin: '0.5rem 0', 
@@ -1052,7 +1101,7 @@ const SessionDetailModal = () => {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   type="button"
-                  onClick={() => setEditFormData({...editFormData, [question.key]: true})}
+                  onClick={() => setEditFormData(prev => ({...prev, [question.key]: true}))}
                   style={{
                     backgroundColor: editFormData[question.key] === true ? '#22c55e' : '#374151',
                     color: 'white',
@@ -1066,7 +1115,7 @@ const SessionDetailModal = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditFormData({...editFormData, [question.key]: false})}
+                  onClick={() => setEditFormData(prev => ({...prev, [question.key]: false}))}
                   style={{
                     backgroundColor: editFormData[question.key] === false ? '#ef4444' : '#374151',
                     color: 'white',
@@ -1080,7 +1129,7 @@ const SessionDetailModal = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditFormData({...editFormData, [question.key]: null})}
+                  onClick={() => setEditFormData(prev => ({...prev, [question.key]: null}))}
                   style={{
                     backgroundColor: editFormData[question.key] === null ? '#f59e0b' : '#374151',
                     color: 'white',
@@ -1106,7 +1155,7 @@ const SessionDetailModal = () => {
                   <button
                     key={score}
                     type="button"
-                    onClick={() => setEditFormData({...editFormData, [question.key]: score})}
+                    onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
                     style={{
                       backgroundColor: editFormData[question.key] === score ? '#3b82f6' : '#374151',
                       color: 'white',
@@ -1124,7 +1173,10 @@ const SessionDetailModal = () => {
               <textarea
                 placeholder="Comments..."
                 value={editFormData[`${question.key}_comment`] || ''}
-                onChange={(e) => setEditFormData({...editFormData, [`${question.key}_comment`]: e.target.value})}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setEditFormData(prev => ({...prev, [`${question.key}_comment`]: newValue}));
+                }}
                 style={{ 
                   width: '100%', 
                   margin: '0.5rem 0', 
@@ -1133,7 +1185,58 @@ const SessionDetailModal = () => {
                   color: '#ffffff',
                   border: '1px solid #444',
                   borderRadius: '6px',
-                  minHeight: '80px'
+                  minHeight: '80px',
+                  resize: 'vertical',
+                  overflowAnchor: 'none'
+                }}
+                rows="3"
+              />
+            </div>
+          ))}
+
+          {/* Closing Questions */}
+          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Closing Questions</h3>
+          {closingQuestions.map((question) => (
+            <div key={question.key} style={{ margin: '1.5rem 0', padding: '1rem', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
+              <label style={{ color: '#ffffff', display: 'block', marginBottom: '0.75rem' }}>{question.text}</label>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                {[1,2,3,4,5].map(score => (
+                  <button
+                    key={score}
+                    type="button"
+                    onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
+                    style={{
+                      backgroundColor: editFormData[question.key] === score ? '#3b82f6' : '#374151',
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      minWidth: '40px'
+                    }}
+                  >
+                    {score}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                placeholder="Comments..."
+                value={editFormData[`${question.key}_comment`] || ''}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setEditFormData(prev => ({...prev, [`${question.key}_comment`]: newValue}));
+                }}
+                style={{ 
+                  width: '100%', 
+                  margin: '0.5rem 0', 
+                  padding: '0.75rem',
+                  backgroundColor: '#1a1a1a',
+                  color: '#ffffff',
+                  border: '1px solid #444',
+                  borderRadius: '6px',
+                  minHeight: '80px',
+                  resize: 'vertical',
+                  overflowAnchor: 'none'
                 }}
                 rows="3"
               />
@@ -1145,7 +1248,10 @@ const SessionDetailModal = () => {
           <textarea
             placeholder="Overall comments..."
             value={editFormData.final_comment || ''}
-            onChange={(e) => setEditFormData({...editFormData, final_comment: e.target.value})}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setEditFormData(prev => ({...prev, final_comment: newValue}));
+            }}
             style={{ 
               width: '100%', 
               margin: '0.5rem 0', 
@@ -1154,43 +1260,45 @@ const SessionDetailModal = () => {
               color: '#ffffff',
               border: '1px solid #444',
               borderRadius: '6px',
-              minHeight: '100px'
+              minHeight: '100px',
+              resize: 'vertical',
+              overflowAnchor: 'none'
             }}
             rows="4"
           />
         </div>
 
-       <div style={{ marginTop: '2rem', textAlign: 'right', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-  <button 
-    onClick={() => setShowEditModal(false)}
-    style={{ 
-      padding: '0.75rem 1.5rem',
-      backgroundColor: '#6b7280',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      cursor: 'pointer'
-    }}
-  >
-    Cancel (ESC)
-  </button>
-  <button 
-    onClick={handleSaveEdit}
-    style={{ 
-      padding: '0.75rem 1.5rem',
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      cursor: 'pointer'
-    }}
-  >
-    Save Changes
-  </button>
-</div>
-</div>
-</div>
-)
+        <div style={{ marginTop: '2rem', textAlign: 'right', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => setShowEditModal(false)}
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#6b7280',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            Cancel (ESC)
+          </button>
+          <button 
+            onClick={handleSaveEdit}
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 );
 
   return (
@@ -1395,30 +1503,34 @@ const SessionDetailModal = () => {
     const [trainingData, setTrainingData] = useState(null);
 
     /* ========== TRAINING LIBRARY AUTO-REDIRECT LOGIC ========== */
-    const analyzeForTraining = (categoryScores) => {
-      const trainingCandidates = [];
+const analyzeForTraining = (categoryScores) => {
+  const trainingCandidates = [];
+  
+  // Check each category for high scores + positive sentiment
+  Object.entries(categoryScores).forEach(([category, data]) => {
+    if (data.score >= 4) {
+      const comment = data.comment || '';
+      const positiveWords = ['great', 'excellent', 'amazing', 'outstanding', 'superb', 'fantastic', 'good', 'well', 'strong', 'solid', 'confident'];
+      const hasPositiveLanguage = comment.length > 0 && positiveWords.some(word => 
+        comment.toLowerCase().includes(word)
+      );
       
-      // Check each category for high scores + positive sentiment
-      Object.entries(categoryScores).forEach(([category, data]) => {
-        if (data.score >= 4) {
-          const comment = data.comment || '';
-          const positiveWords = ['great', 'excellent', 'amazing', 'outstanding', 'superb', 'fantastic', 'good', 'well', 'strong'];
-          const hasPositiveLanguage = positiveWords.some(word => 
-            comment.toLowerCase().includes(word)
-          );
-          
-          if (hasPositiveLanguage) {
-            trainingCandidates.push({
-              category: category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-              score: data.score,
-              comment: comment
-            });
-          }
-        }
-      });
+      // Log for debugging
+      console.log(`Category: ${category}, Score: ${data.score}, Comment: "${comment}", HasPositive: ${hasPositiveLanguage}`);
+      
+      if (hasPositiveLanguage || data.score === 5) { // Auto-include perfect scores
+        trainingCandidates.push({
+          category: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          score: data.score,
+          comment: comment
+        });
+      }
+    }
+  });
 
-      return trainingCandidates;
-    };
+  console.log('Training candidates found:', trainingCandidates);
+  return trainingCandidates;
+};
 
     /* ========== FORM SUBMISSION SECTION ========== */
     const handleSubmit = async (e) => {
@@ -1545,33 +1657,36 @@ const SessionDetailModal = () => {
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
 
-        /* ========== TRAINING LIBRARY AUTO-REDIRECT SECTION ========== */
-        // Analyze scores and comments for training opportunities
-        const categoryData = {
-          bonding_rapport: { score: formData.bonding_rapport, comment: formData.bonding_rapport_comment },
-          magic_problem: { score: formData.magic_problem, comment: formData.magic_problem_comment },
-          second_ask: { score: formData.second_ask, comment: formData.second_ask_comment },
-          objection_handling: { score: formData.objection_handling, comment: formData.objection_handling_comment }
-        };
+       /* ========== TRAINING LIBRARY AUTO-REDIRECT SECTION ========== */
+// Analyze scores and comments for training opportunities
+const categoryData = {
+  bonding_rapport: { score: formData.bonding_rapport, comment: formData.bonding_rapport_comment },
+  magic_problem: { score: formData.magic_problem, comment: formData.magic_problem_comment },
+  second_ask: { score: formData.second_ask, comment: formData.second_ask_comment },
+  closing_offer_presentation: { score: formData.closing_offer_presentation, comment: formData.closing_offer_comment },
+  closing_motivation: { score: formData.closing_motivation, comment: formData.closing_motivation_comment },
+  closing_objections: { score: formData.closing_objections, comment: formData.closing_objections_comment }
+};
 
-        const trainingCandidates = analyzeForTraining(categoryData);
+console.log('Analyzing category data:', categoryData); // Debug log
+const trainingCandidates = analyzeForTraining(categoryData);
+console.log('Training candidates result:', trainingCandidates); // Debug log
 
-        if (trainingCandidates.length > 0) {
-          const selectedAgent = agents.find(agent => agent.id === selectedAgentToScore);
-          setTrainingData({
-            agentName: selectedAgent?.name || 'Unknown',
-            categories: trainingCandidates,
-            propertyAddress: formData.property_address,
-            callDate: formData.call_date,
-            callTime: formData.call_time
-          });
-          
-          // Show training redirect after short delay
-          setTimeout(() => {
-            setShowTrainingRedirect(true);
-          }, 1500);
-        }
-
+if (trainingCandidates.length > 0) {
+  const selectedAgent = agents.find(agent => agent.id === selectedAgentToScore);
+  setTrainingData({
+    agentName: selectedAgent?.name || 'Unknown',
+    categories: trainingCandidates,
+    propertyAddress: formData.property_address,
+    callDate: formData.call_date,
+    callTime: formData.call_time
+  });
+  
+  // Show training redirect after short delay
+  setTimeout(() => {
+    setShowTrainingRedirect(true);
+  }, 1500);
+}
         // Reset form
         resetForm();
         
