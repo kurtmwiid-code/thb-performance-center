@@ -1932,19 +1932,21 @@ if (trainingCandidates.length > 0) {
             {/* ========== AGENT TO SCORE SELECTION SECTION ========== */}
             <div className="form-section">
               <h3 className="section-title">Agent to Score</h3>
-              <select 
-                value={selectedAgentToScore || ''}
-                onChange={(e) => setSelectedAgentToScore(e.target.value)}
-                className="agent-select"
-                required
-              >
-                <option value="">Select Agent</option>
-                {agents.map(agent => (
-                  <option key={agent.id} value={agent.id}>
-                    {agent.name}
-                  </option>
-                ))}
-              </select>
+         <select 
+  value={selectedAgentToScore || ''}
+  onChange={(e) => setSelectedAgentToScore(e.target.value)}
+  className="agent-select"
+  required
+>
+  <option value="">Select Agent</option>
+  {agents
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(agent => (
+      <option key={agent.id} value={agent.id}>
+        {agent.name}
+      </option>
+    ))}
+</select>
             </div>
 
             {/* ========== CALL DETAILS SECTION ========== */}
