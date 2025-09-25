@@ -108,6 +108,7 @@ const calculateOverallScore = (binaryScores, categoryScores) => {
 
   return Math.round((binaryWeighted + categoryWeighted) * 10) / 10;
 };
+
 /* ========== MAIN APP COMPONENT ========== */
 const App = () => {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -209,57 +210,68 @@ const App = () => {
         }
 
         const totalSessions = agentSessions.length;
-        let totalBonding = 0, totalMagic = 0, totalSecond = 0;
-let totalClosing = 0;
+        let totalBonding = 0, totalMagic = 0, totalSecond = 0, totalClosing = 0;
+        let bondingCount = 0, magicCount = 0, secondCount = 0, closingCount = 0;
 
-agentSessions.forEach(session => {
-  if (session.category_scores && session.category_scores.length > 0) {
-    const scores = session.category_scores[0];
-    
-    // Only add scores that are not null
-    if (scores.bonding_rapport !== null && scores.bonding_rapport !== undefined) {
-      totalBonding += scores.bonding_rapport;
-    }
-    if (scores.magic_problem !== null && scores.magic_problem !== undefined) {
-      totalMagic += scores.magic_problem;
-    }
-    if (scores.second_ask !== null && scores.second_ask !== undefined) {
-      totalSecond += scores.second_ask;
-    }
-    
-    // Handle closing scores with null checking
-    const validClosingScores = [];
-    let totalClosingWeight = 0;
-    let weightedClosingSum = 0;
-    
-    if (scores.closing_offer_presentation !== null && scores.closing_offer_presentation !== undefined) {
-      weightedClosingSum += scores.closing_offer_presentation * 0.4;
-      totalClosingWeight += 0.4;
-    }
-    if (scores.closing_motivation !== null && scores.closing_motivation !== undefined) {
-      weightedClosingSum += scores.closing_motivation * 0.4;
-      totalClosingWeight += 0.4;
-    }
-    if (scores.closing_objections !== null && scores.closing_objections !== undefined) {
-      weightedClosingSum += scores.closing_objections * 0.2;
-      totalClosingWeight += 0.2;
-    }
-    
-    // Only add closing average if at least one closing score exists
-    if (totalClosingWeight > 0) {
-      const closingAvg = weightedClosingSum / totalClosingWeight;
-      totalClosing += closingAvg;
-    }
-  }
-});
+        agentSessions.forEach(session => {
+          if (session.category_scores && session.category_scores.length > 0) {
+            const scores = session.category_scores[0];
+            
+            // Only add scores that are not null and count them
+            if (scores.bonding_rapport !== null && scores.bonding_rapport !== undefined) {
+              totalBonding += scores.bonding_rapport;
+              bondingCount++;
+            }
+            if (scores.magic_problem !== null && scores.magic_problem !== undefined) {
+              totalMagic += scores.magic_problem;
+              magicCount++;
+            }
+            if (scores.second_ask !== null && scores.second_ask !== undefined) {
+              totalSecond += scores.second_ask;
+              secondCount++;
+            }
+            
+            // Handle closing scores with null checking
+            let totalClosingWeight = 0;
+            let weightedClosingSum = 0;
+            
+            if (scores.closing_offer_presentation !== null && scores.closing_offer_presentation !== undefined) {
+              weightedClosingSum += scores.closing_offer_presentation * 0.4;
+              totalClosingWeight += 0.4;
+            }
+            if (scores.closing_motivation !== null && scores.closing_motivation !== undefined) {
+              weightedClosingSum += scores.closing_motivation * 0.4;
+              totalClosingWeight += 0.4;
+            }
+            if (scores.closing_objections !== null && scores.closing_objections !== undefined) {
+              weightedClosingSum += scores.closing_objections * 0.2;
+              totalClosingWeight += 0.2;
+            }
+            
+            // Only add closing average if at least one closing score exists
+            if (totalClosingWeight > 0) {
+              const closingAvg = weightedClosingSum / totalClosingWeight;
+              totalClosing += closingAvg;
+              closingCount++;
+            }
+          }
+        });
 
-// Update the average calculations to use 4 categories instead of 5
-const avgBonding = ((totalBonding / totalSessions) / 5 * 100);
-const avgMagic = ((totalMagic / totalSessions) / 5 * 100);
-const avgSecond = ((totalSecond / totalSessions) / 5 * 100);
-const avgClosing = ((totalClosing / totalSessions) / 5 * 100);
+        // Calculate averages only using sessions that had scores (not N/A)
+        const avgBonding = bondingCount > 0 ? ((totalBonding / bondingCount) / 5 * 100) : 0;
+        const avgMagic = magicCount > 0 ? ((totalMagic / magicCount) / 5 * 100) : 0;
+        const avgSecond = secondCount > 0 ? ((totalSecond / secondCount) / 5 * 100) : 0;
+        const avgClosing = closingCount > 0 ? ((totalClosing / closingCount) / 5 * 100) : 0;
 
-const overallScore = (avgBonding + avgMagic + avgSecond + avgClosing) / 4; // Divide by 4, not 5
+        // Calculate overall score based on categories that have data
+        const validScores = [];
+        if (bondingCount > 0) validScores.push(avgBonding);
+        if (magicCount > 0) validScores.push(avgMagic);
+        if (secondCount > 0) validScores.push(avgSecond);
+        if (closingCount > 0) validScores.push(avgClosing);
+
+        const overallScore = validScores.length > 0 ? 
+          validScores.reduce((sum, score) => sum + score, 0) / validScores.length : 0;
         
         return {
           id: agent.id,
@@ -287,28 +299,28 @@ const overallScore = (avgBonding + avgMagic + avgSecond + avgClosing) / 4; // Di
   };
 
   /* ========== UTILITY FUNCTIONS SECTION ========== */
-const teamData = {
-  averageScore: agents.length > 0 ? Math.round(agents.reduce((sum, agent) => sum + agent.overallScore, 0) / agents.length * 10) / 10 : 0,
-  trend: 2.3,
-  topRep: agents.length > 0 ? agents.reduce((prev, current) => prev.overallScore > current.overallScore ? prev : current) : { name: 'No data', score: 0 },
-  mostImproved: { name: 'Calculating...', improvement: 0 },
-  teamStrength: (() => {
-    if (agents.length === 0) return { category: 'No data', score: 0 };
-    
-    const categoryAverages = {
-      'Bonding & Rapport': agents.reduce((sum, agent) => sum + (agent.scores['Bonding & Rapport'] || 0), 0) / agents.length,
-      'Magic Problem': agents.reduce((sum, agent) => sum + (agent.scores['Magic Problem'] || 0), 0) / agents.length,
-      'Second Ask': agents.reduce((sum, agent) => sum + (agent.scores['Second Ask'] || 0), 0) / agents.length,
-      'Closing': agents.reduce((sum, agent) => sum + (agent.scores['Closing'] || 0), 0) / agents.length
-    };
-    
-    const strongest = Object.entries(categoryAverages).reduce((prev, current) => 
-      current[1] > prev[1] ? current : prev
-    );
-    
-    return { category: strongest[0], score: Math.round(strongest[1] * 10) / 10 };
-  })()
-};
+  const teamData = {
+    averageScore: agents.length > 0 ? Math.round(agents.reduce((sum, agent) => sum + agent.overallScore, 0) / agents.length * 10) / 10 : 0,
+    trend: 2.3,
+    topRep: agents.length > 0 ? agents.reduce((prev, current) => prev.overallScore > current.overallScore ? prev : current) : { name: 'No data', score: 0 },
+    mostImproved: { name: 'Calculating...', improvement: 0 },
+    teamStrength: (() => {
+      if (agents.length === 0) return { category: 'No data', score: 0 };
+      
+      const categoryAverages = {
+        'Bonding & Rapport': agents.reduce((sum, agent) => sum + (agent.scores['Bonding & Rapport'] || 0), 0) / agents.length,
+        'Magic Problem': agents.reduce((sum, agent) => sum + (agent.scores['Magic Problem'] || 0), 0) / agents.length,
+        'Second Ask': agents.reduce((sum, agent) => sum + (agent.scores['Second Ask'] || 0), 0) / agents.length,
+        'Closing': agents.reduce((sum, agent) => sum + (agent.scores['Closing'] || 0), 0) / agents.length
+      };
+      
+      const strongest = Object.entries(categoryAverages).reduce((prev, current) => 
+        current[1] > prev[1] ? current : prev
+      );
+      
+      return { category: strongest[0], score: Math.round(strongest[1] * 10) / 10 };
+    })()
+  };
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -355,30 +367,6 @@ const teamData = {
     ) ? 'negative' : 'neutral';
     
     return comments.join(' ');
-  };
-
-  const extractKeywordTags = (comments, category) => {
-    if (!comments || comments.length === 0) return [];
-    
-    const allText = comments.join(' ').toLowerCase();
-    
-    const keywordPatterns = {
-      positive: ['excellent', 'great', 'strong', 'good', 'well', 'solid', 'confident'],
-      negative: ['needs', 'weak', 'poor', 'lacking', 'struggled', 'missed', 'unclear'],
-      neutral: ['average', 'okay', 'standard', 'typical', 'normal']
-    };
-    
-    const tags = [];
-    
-    Object.entries(keywordPatterns).forEach(([sentiment, words]) => {
-      words.forEach(word => {
-        if (allText.includes(word)) {
-          tags.push({ text: word, sentiment });
-        }
-      });
-    });
-    
-    return tags;
   };
 
   /* ========== DASHBOARD COMPONENT SECTION ========== */
@@ -554,920 +542,650 @@ const teamData = {
   );
 
   /* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
-const DeepDiveView = () => {
- const [selectedSession, setSelectedSession] = useState(null);
-const [showSessionDetail, setShowSessionDetail] = useState(false);
-const [editingSession, setEditingSession] = useState(null);
-const [showEditModal, setShowEditModal] = useState(false);
-const [editFormData, setEditFormData] = useState({});
+  const DeepDiveView = () => {
+    const [selectedSession, setSelectedSession] = useState(null);
+    const [showSessionDetail, setShowSessionDetail] = useState(false);
+    const [editingSession, setEditingSession] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editFormData, setEditFormData] = useState({});
 
-// Add ESC key listener for edit modal
-useEffect(() => {
-  const handleEscKey = (event) => {
-    if (event.key === 'Escape') {
-      if (showEditModal) {
-        setShowEditModal(false);
-      }
-      if (showSessionDetail) {
-        setShowSessionDetail(false);
-      }
-    }
-  };
-
-  if (showEditModal || showSessionDetail) {
-    document.addEventListener('keydown', handleEscKey);
-  }
-
-  return () => {
-    document.removeEventListener('keydown', handleEscKey);
-  };
-}, [showEditModal, showSessionDetail]);
-
-const handleSessionClick = async (sessionId) => {
-    try {
-      const { data, error } = await supabase
-        .from('qc_sessions')
-        .select(`
-          *,
-          binary_scores(*),
-          category_scores(*),
-          qc_agents(name)
-        `)
-        .eq('id', sessionId)
-        .single();
-      
-      if (error) throw error;
-      setSelectedSession(data);
-      setShowSessionDetail(true);
-    } catch (error) {
-      console.error('Error fetching session details:', error);
-    }
-  };
-
-  const handleEditSession = async (sessionId) => {
-    try {
-      const { data, error } = await supabase
-        .from('qc_sessions')
-        .select(`
-          *,
-          binary_scores(*),
-          category_scores(*)
-        `)
-        .eq('id', sessionId)
-        .single();
-
-      if (error) throw error;
-
-      // Populate edit form with existing data
-      const editData = {
-        property_address: data.property_address || '',
-        lead_status: data.lead_status || 'Active',
-        call_date: data.call_date || '',
-        call_time: data.call_time || '',
-        final_comment: data.final_comment || '',
+    // ESC key listener for modals
+    useEffect(() => {
+      const handleEscKey = (event) => {
+        if (event.key === 'Escape') {
+          if (showEditModal) {
+            setShowEditModal(false);
+          }
+          if (showSessionDetail) {
+            setShowSessionDetail(false);
+          }
+        }
       };
 
-      // Add binary scores
-      if (data.binary_scores && data.binary_scores.length > 0) {
-        const binaryData = data.binary_scores[0];
-        editData.intro = binaryData.intro;
-        editData.first_ask = binaryData.first_ask;
-        editData.property_condition = binaryData.property_condition;
+      if (showEditModal || showSessionDetail) {
+        document.addEventListener('keydown', handleEscKey);
+        document.body.style.overflow = 'hidden';
       }
 
-      // Add category scores
-      if (data.category_scores && data.category_scores.length > 0) {
-        const categoryData = data.category_scores[0];
-        editData.bonding_rapport = categoryData.bonding_rapport;
-        editData.bonding_rapport_comment = categoryData.bonding_rapport_comment || '';
-        editData.magic_problem = categoryData.magic_problem;
-        editData.magic_problem_comment = categoryData.magic_problem_comment || '';
-        editData.second_ask = categoryData.second_ask;
-        editData.second_ask_comment = categoryData.second_ask_comment || '';
-        editData.objection_handling = categoryData.objection_handling;
-        editData.objection_handling_comment = categoryData.objection_handling_comment || '';
-        editData.closing_offer_presentation = categoryData.closing_offer_presentation;
-        editData.closing_offer_comment = categoryData.closing_offer_comment || '';
-        editData.closing_motivation = categoryData.closing_motivation;
-        editData.closing_motivation_comment = categoryData.closing_motivation_comment || '';
-        editData.closing_objections = categoryData.closing_objections;
-        editData.closing_objections_comment = categoryData.closing_objections_comment || '';
+      return () => {
+        document.removeEventListener('keydown', handleEscKey);
+        document.body.style.overflow = 'unset';
+      };
+    }, [showEditModal, showSessionDetail]);
+
+    const handleSessionClick = async (sessionId) => {
+      try {
+        const { data, error } = await supabase
+          .from('qc_sessions')
+          .select(`
+            *,
+            binary_scores(*),
+            category_scores(*),
+            qc_agents(name)
+          `)
+          .eq('id', sessionId)
+          .single();
+        
+        if (error) throw error;
+        setSelectedSession(data);
+        setShowSessionDetail(true);
+      } catch (error) {
+        console.error('Error fetching session details:', error);
       }
+    };
 
-      setEditFormData(editData);
-      setEditingSession(sessionId);
-      setShowEditModal(true);
-    } catch (error) {
-      console.error('Error loading session for edit:', error);
-      alert('Error loading session data');
-    }
-  };
+    const handleEditSession = async (sessionId) => {
+      try {
+        const { data, error } = await supabase
+          .from('qc_sessions')
+          .select(`
+            *,
+            binary_scores(*),
+            category_scores(*)
+          `)
+          .eq('id', sessionId)
+          .single();
 
-  const handleSaveEdit = async () => {
-    try {
-      // Update QC session
-      const { error: sessionError } = await supabase
-        .from('qc_sessions')
-        .update({
-          property_address: editFormData.property_address,
-          lead_status: editFormData.lead_status,
-          call_date: editFormData.call_date,
-          call_time: editFormData.call_time,
-          final_comment: editFormData.final_comment
-        })
-        .eq('id', editingSession);
+        if (error) throw error;
 
-      if (sessionError) throw sessionError;
+        // Create stable edit data
+        const stableEditData = {
+          property_address: data.property_address || '',
+          lead_status: data.lead_status || 'Active',
+          call_date: data.call_date || '',
+          call_time: data.call_time || '',
+          final_comment: data.final_comment || '',
+        };
 
-      // Update binary scores
-      const { error: binaryError } = await supabase
-        .from('binary_scores')
-        .update({
+        // Add binary scores
+        if (data.binary_scores && data.binary_scores.length > 0) {
+          const binaryData = data.binary_scores[0];
+          stableEditData.intro = binaryData.intro;
+          stableEditData.first_ask = binaryData.first_ask;
+          stableEditData.property_condition = binaryData.property_condition;
+        }
+
+        // Add category scores
+        if (data.category_scores && data.category_scores.length > 0) {
+          const categoryData = data.category_scores[0];
+          stableEditData.bonding_rapport = categoryData.bonding_rapport;
+          stableEditData.bonding_rapport_comment = categoryData.bonding_rapport_comment || '';
+          stableEditData.magic_problem = categoryData.magic_problem;
+          stableEditData.magic_problem_comment = categoryData.magic_problem_comment || '';
+          stableEditData.second_ask = categoryData.second_ask;
+          stableEditData.second_ask_comment = categoryData.second_ask_comment || '';
+          stableEditData.objection_handling = categoryData.objection_handling;
+          stableEditData.objection_handling_comment = categoryData.objection_handling_comment || '';
+          stableEditData.closing_offer_presentation = categoryData.closing_offer_presentation;
+          stableEditData.closing_offer_comment = categoryData.closing_offer_comment || '';
+          stableEditData.closing_motivation = categoryData.closing_motivation;
+          stableEditData.closing_motivation_comment = categoryData.closing_motivation_comment || '';
+          stableEditData.closing_objections = categoryData.closing_objections;
+          stableEditData.closing_objections_comment = categoryData.closing_objections_comment || '';
+        }
+
+        setEditFormData(stableEditData);
+        setEditingSession(sessionId);
+        
+        setTimeout(() => {
+          setShowEditModal(true);
+        }, 10);
+        
+      } catch (error) {
+        console.error('Error loading session for edit:', error);
+        alert('Error loading session data');
+      }
+    };
+
+    const handleSaveEdit = async () => {
+      try {
+        // Update QC session
+        const { error: sessionError } = await supabase
+          .from('qc_sessions')
+          .update({
+            property_address: editFormData.property_address,
+            lead_status: editFormData.lead_status,
+            call_date: editFormData.call_date,
+            call_time: editFormData.call_time,
+            final_comment: editFormData.final_comment
+          })
+          .eq('id', editingSession);
+
+        if (sessionError) throw sessionError;
+
+        // Update binary scores
+        const { error: binaryError } = await supabase
+          .from('binary_scores')
+          .update({
+            intro: editFormData.intro,
+            first_ask: editFormData.first_ask,
+            property_condition: editFormData.property_condition
+          })
+          .eq('session_id', editingSession);
+
+        if (binaryError) throw binaryError;
+
+        // Update category scores
+        const { error: categoryError } = await supabase
+          .from('category_scores')
+          .update({
+            bonding_rapport: editFormData.bonding_rapport,
+            bonding_rapport_comment: editFormData.bonding_rapport_comment,
+            magic_problem: editFormData.magic_problem,
+            magic_problem_comment: editFormData.magic_problem_comment,
+            second_ask: editFormData.second_ask,
+            second_ask_comment: editFormData.second_ask_comment,
+            objection_handling: editFormData.objection_handling,
+            objection_handling_comment: editFormData.objection_handling_comment,
+            closing_offer_presentation: editFormData.closing_offer_presentation,
+            closing_offer_comment: editFormData.closing_offer_comment,
+            closing_motivation: editFormData.closing_motivation,
+            closing_motivation_comment: editFormData.closing_motivation_comment,
+            closing_objections: editFormData.closing_objections,
+            closing_objections_comment: editFormData.closing_objections_comment
+          })
+          .eq('session_id', editingSession);
+
+        if (categoryError) throw categoryError;
+
+        // Recalculate overall score
+        const binaryScores = {
           intro: editFormData.intro,
           first_ask: editFormData.first_ask,
           property_condition: editFormData.property_condition
-        })
-        .eq('session_id', editingSession);
+        };
 
-      if (binaryError) throw binaryError;
-
-      // Update category scores
-      const { error: categoryError } = await supabase
-        .from('category_scores')
-        .update({
+        const categoryScores = {
           bonding_rapport: editFormData.bonding_rapport,
-          bonding_rapport_comment: editFormData.bonding_rapport_comment,
           magic_problem: editFormData.magic_problem,
-          magic_problem_comment: editFormData.magic_problem_comment,
           second_ask: editFormData.second_ask,
-          second_ask_comment: editFormData.second_ask_comment,
           objection_handling: editFormData.objection_handling,
-          objection_handling_comment: editFormData.objection_handling_comment,
           closing_offer_presentation: editFormData.closing_offer_presentation,
-          closing_offer_comment: editFormData.closing_offer_comment,
           closing_motivation: editFormData.closing_motivation,
-          closing_motivation_comment: editFormData.closing_motivation_comment,
-          closing_objections: editFormData.closing_objections,
-          closing_objections_comment: editFormData.closing_objections_comment
-        })
-        .eq('session_id', editingSession);
+          closing_objections: editFormData.closing_objections
+        };
 
-      if (categoryError) throw categoryError;
+        const newOverallScore = calculateOverallScore(binaryScores, categoryScores);
 
-      // Recalculate overall score
-      const binaryScores = {
-        intro: editFormData.intro,
-        first_ask: editFormData.first_ask,
-        property_condition: editFormData.property_condition
-      };
+        // Update overall score
+        await supabase
+          .from('qc_sessions')
+          .update({ overall_score: newOverallScore })
+          .eq('id', editingSession);
 
-      const categoryScores = {
-        bonding_rapport: editFormData.bonding_rapport,
-        magic_problem: editFormData.magic_problem,
-        second_ask: editFormData.second_ask,
-        objection_handling: editFormData.objection_handling,
-        closing_offer_presentation: editFormData.closing_offer_presentation,
-        closing_motivation: editFormData.closing_motivation,
-        closing_objections: editFormData.closing_objections
-      };
-
-      const newOverallScore = calculateOverallScore(binaryScores, categoryScores);
-
-      // Update overall score
-      await supabase
-        .from('qc_sessions')
-        .update({ overall_score: newOverallScore })
-        .eq('id', editingSession);
-
-      setShowEditModal(false);
-      alert('Session updated successfully!');
-      await fetchAgentsData(); // Refresh data
-    } catch (error) {
-      console.error('Error updating session:', error);
-      alert('Error updating session');
-    }
-  };
-
-  const handleDeleteSession = async (sessionId) => {
-  if (!window.confirm('Are you sure you want to delete this QC session?')) {
-    return;
-  }
-
-  try {
-    const { error } = await supabase
-      .from('qc_sessions')
-      .delete()
-      .eq('id', sessionId);
-
-    if (error) throw error;
-    alert('QC Session deleted successfully');
-    await fetchAgentsData();
-  } catch (error) {
-    console.error('Error deleting session:', error);
-    alert('Error deleting session');
-  }
-};
-
-  const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
-  const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
-  const pendingCalls = agentSessions.filter(session => session.lead_status === 'Pending').length;
-  const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;
-
-  // Session Detail Modal
-const SessionDetailModal = () => {
-  // Add ESC key listener
-  useEffect(() => {
-    const handleEscKey = (event) => {
-      if (event.key === 'Escape') {
-        setShowSessionDetail(false);
+        setShowEditModal(false);
+        alert('Session updated successfully!');
+        await fetchAgentsData();
+      } catch (error) {
+        console.error('Error updating session:', error);
+        alert('Error updating session');
       }
     };
 
-    if (showSessionDetail) {
-      document.addEventListener('keydown', handleEscKey);
-    }
+    const handleDeleteSession = async (sessionId) => {
+      if (!window.confirm('Are you sure you want to delete this QC session?')) {
+        return;
+      }
 
-    return () => {
-      document.removeEventListener('keydown', handleEscKey);
+      try {
+        const { error } = await supabase
+          .from('qc_sessions')
+          .delete()
+          .eq('id', sessionId);
+
+        if (error) throw error;
+        alert('QC Session deleted successfully');
+        await fetchAgentsData();
+      } catch (error) {
+        console.error('Error deleting session:', error);
+        alert('Error deleting session');
+      }
     };
-  }, [showSessionDetail]);
 
-  return showSessionDetail && selectedSession && (
-    <div 
-      className="modal-overlay" 
-      onClick={() => setShowSessionDetail(false)}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.9)',
-        zIndex: 1000,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}
-    >
-      <div 
-        className="modal-content" 
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: '#1a1a1a',
-          color: '#ffffff',
-          padding: '2rem',
-          borderRadius: '12px',
-          maxWidth: '900px',
-          maxHeight: '85vh',
-          overflow: 'auto',
-          width: '95%',
-          border: '1px solid #333'
-        }}
-      >
-        <div className="session-detail-header" style={{ 
-          borderBottom: '2px solid #333', 
-          paddingBottom: '1rem', 
-          marginBottom: '1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start'
-        }}>
-          <div>
-            <h2 style={{ color: '#ffffff', margin: '0 0 1rem 0' }}>Session Details - {selectedAgent.name}</h2>
-            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Property:</strong> {selectedSession.property_address}</p>
-            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Date:</strong> {selectedSession.call_date} {selectedSession.call_time}</p>
-            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Lead Status:</strong> {selectedSession.lead_status}</p>
-            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>QC Agent:</strong> {selectedSession.qc_agents?.name}</p>
-            <p style={{ color: '#cccccc', margin: '0.25rem 0' }}><strong>Overall Score:</strong> {selectedSession.overall_score}%</p>
-          </div>
-          <button 
-            onClick={() => setShowSessionDetail(false)}
-            style={{ 
-              background: 'none',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: '24px',
-              cursor: 'pointer',
-              padding: '0.5rem'
-            }}
-          >
-            ✕
-          </button>
-        </div>
+    const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
+    const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
+    const pendingCalls = agentSessions.filter(session => session.lead_status === 'Pending').length;
+    const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;
 
-        {/* Binary Questions */}
-        <div className="session-section" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Binary Questions</h3>
-          {selectedSession.binary_scores && selectedSession.binary_scores.length > 0 && (
-            <div>
-              {binaryQuestions.map((question) => {
-                const score = selectedSession.binary_scores[0][question.key];
-                return (
-                  <div key={question.key} style={{ 
-                    margin: '1rem 0', 
-                    padding: '1rem', 
-                    backgroundColor: '#2a2a2a', 
-                    borderRadius: '8px',
-                    border: '1px solid #333'
-                  }}>
-                    <div style={{ color: '#ffffff', marginBottom: '0.5rem' }}><strong>{question.text}</strong></div>
-                    <span style={{
-                      padding: '0.5rem 1rem',
-                      borderRadius: '6px',
-                      backgroundColor: score === true ? '#22c55e' : score === false ? '#ef4444' : '#f59e0b',
-                      color: 'white',
-                      fontWeight: 'bold'
-                    }}>
-                      {score === true ? 'Yes' : score === false ? 'No' : 'N/A'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Category Ratings */}
-        <div className="session-section" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Category Ratings</h3>
-          {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
-            <div>
-              {ratedQuestions.map((question) => {
-                const score = selectedSession.category_scores[0][question.key];
-                const comment = selectedSession.category_scores[0][`${question.key}_comment`];
-                return (
-                  <div key={question.key} style={{ 
-                    margin: '1rem 0', 
-                    padding: '1rem', 
-                    backgroundColor: '#2a2a2a', 
-                    borderRadius: '8px',
-                    border: '1px solid #333'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <strong style={{ color: '#ffffff' }}>{question.category}</strong>
-                      <span style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: '6px',
-                        backgroundColor: score >= 4 ? '#22c55e' : score >= 3 ? '#f59e0b' : '#ef4444',
-                        color: 'white',
-                        fontWeight: 'bold'
-                      }}>
-                        {score || 'N/A'}/5
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '0.9rem', color: '#cccccc', margin: '0.5rem 0', fontStyle: 'italic' }}>
-                      {question.text}
-                    </p>
-                    {comment && (
-                      <div style={{ 
-                        marginTop: '1rem', 
-                        padding: '1rem', 
-                        backgroundColor: '#1a1a1a', 
-                        borderRadius: '6px',
-                        border: '1px solid #444'
-                      }}>
-                        <strong style={{ color: '#ffffff' }}>QC Comment:</strong>
-                        <p style={{ color: '#cccccc', margin: '0.5rem 0 0 0' }}>{comment}</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Closing Questions */}
-        <div className="session-section" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Closing Questions</h3>
-          {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
-            <div>
-              {closingQuestions.map((question) => {
-                const score = selectedSession.category_scores[0][question.key];
-                const comment = selectedSession.category_scores[0][`${question.key}_comment`];
-                return (
-                  <div key={question.key} style={{ 
-                    margin: '1rem 0', 
-                    padding: '1rem', 
-                    backgroundColor: '#2a2a2a', 
-                    borderRadius: '8px',
-                    border: '1px solid #333'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <strong style={{ color: '#ffffff' }}>
-                        {question.text} ({Math.round(question.weight * 100)}% weight)
-                      </strong>
-                      <span style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: '6px',
-                        backgroundColor: score >= 4 ? '#22c55e' : score >= 3 ? '#f59e0b' : '#ef4444',
-                        color: 'white',
-                        fontWeight: 'bold'
-                      }}>
-                        {score || 'N/A'}/5
-                      </span>
-                    </div>
-                    {comment && (
-                      <div style={{ 
-                        marginTop: '1rem', 
-                        padding: '1rem', 
-                        backgroundColor: '#1a1a1a', 
-                        borderRadius: '6px',
-                        border: '1px solid #444'
-                      }}>
-                        <strong style={{ color: '#ffffff' }}>QC Comment:</strong>
-                        <p style={{ color: '#cccccc', margin: '0.5rem 0 0 0' }}>{comment}</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Final Comment */}
-        {selectedSession.final_comment && (
-          <div className="session-section">
-            <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Final Comment</h3>
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: '#2a2a2a', 
-              borderRadius: '8px',
-              border: '1px solid #333',
-              color: '#cccccc'
-            }}>
-              {selectedSession.final_comment}
-            </div>
-          </div>
-        )}
-
-        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <button 
-            onClick={() => setShowSessionDetail(false)}
-            style={{ 
-              padding: '0.75rem 2rem',
-              backgroundColor: '#374151',
-              color: 'white',
-              border: '1px solid #6b7280',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            Close (ESC)
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
- const EditModal = () => (
-  showEditModal && (
-    <div className="modal-overlay" style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.9)',
-      zIndex: 1000,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }}>
-      <div className="modal-content" style={{
-        backgroundColor: '#1a1a1a',
-        color: '#ffffff',
-        padding: '2rem',
-        borderRadius: '12px',
-        maxWidth: '900px',
-        maxHeight: '85vh',
-        overflow: 'auto',
-        width: '95%',
-        border: '1px solid #333'
-      }}>
-        <h2 style={{ color: '#ffffff', marginBottom: '2rem' }}>Edit QC Session</h2>
-        
-        <div className="edit-form">
-          {/* Call Details */}
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>Call Details</h3>
-          <input
-            type="text"
-            placeholder="Property Address"
-            value={editFormData.property_address || ''}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setEditFormData(prev => ({...prev, property_address: newValue}));
-            }}
-            style={{ 
-              width: '100%', 
-              margin: '0.5rem 0', 
-              padding: '0.75rem',
-              backgroundColor: '#2a2a2a',
-              color: '#ffffff',
-              border: '1px solid #444',
-              borderRadius: '6px'
-            }}
-          />
-          
-          <select
-            value={editFormData.lead_status || 'Active'}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setEditFormData(prev => ({...prev, lead_status: newValue}));
-            }}
-            style={{ 
-              width: '100%', 
-              margin: '0.5rem 0', 
-              padding: '0.75rem',
-              backgroundColor: '#2a2a2a',
-              color: '#ffffff',
-              border: '1px solid #444',
-              borderRadius: '6px'
-            }}
-          >
-            <option value="Active">Active</option>
-            <option value="Pending">Pending</option>
-            <option value="Dead">Dead</option>
-          </select>
-
-          {/* Binary Questions */}
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Binary Questions</h3>
-          {binaryQuestions.map((question) => (
-            <div key={question.key} style={{ margin: '1.5rem 0', padding: '1rem', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
-              <label style={{ color: '#ffffff', display: 'block', marginBottom: '0.75rem' }}>{question.text}</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setEditFormData(prev => ({...prev, [question.key]: true}))}
-                  style={{
-                    backgroundColor: editFormData[question.key] === true ? '#22c55e' : '#374151',
-                    color: 'white',
-                    padding: '0.5rem 1rem',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditFormData(prev => ({...prev, [question.key]: false}))}
-                  style={{
-                    backgroundColor: editFormData[question.key] === false ? '#ef4444' : '#374151',
-                    color: 'white',
-                    padding: '0.5rem 1rem',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditFormData(prev => ({...prev, [question.key]: null}))}
-                  style={{
-                    backgroundColor: editFormData[question.key] === null ? '#f59e0b' : '#374151',
-                    color: 'white',
-                    padding: '0.5rem 1rem',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  N/A
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {/* Category Ratings */}
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Category Ratings (1-5)</h3>
-          {ratedQuestions.map((question) => (
-            <div key={question.key} style={{ margin: '1.5rem 0', padding: '1rem', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
-              <label style={{ color: '#ffffff', display: 'block', marginBottom: '0.75rem' }}>{question.category}</label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                {[1,2,3,4,5].map(score => (
-                  <button
-                    key={score}
-                    type="button"
-                    onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
-                    style={{
-                      backgroundColor: editFormData[question.key] === score ? '#3b82f6' : '#374151',
-                      color: 'white',
-                      padding: '0.5rem 1rem',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      minWidth: '40px'
-                    }}
-                  >
-                    {score}
-                  </button>
-                ))}
-              </div>
-              <textarea
-                placeholder="Comments..."
-                value={editFormData[`${question.key}_comment`] || ''}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setEditFormData(prev => ({...prev, [`${question.key}_comment`]: newValue}));
-                }}
-                style={{ 
-                  width: '100%', 
-                  margin: '0.5rem 0', 
-                  padding: '0.75rem',
-                  backgroundColor: '#1a1a1a',
-                  color: '#ffffff',
-                  border: '1px solid #444',
-                  borderRadius: '6px',
-                  minHeight: '80px',
-                  resize: 'vertical',
-                  overflowAnchor: 'none'
-                }}
-                rows="3"
-              />
-            </div>
-          ))}
-
-          {/* Closing Questions */}
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Closing Questions</h3>
-          {closingQuestions.map((question) => (
-            <div key={question.key} style={{ margin: '1.5rem 0', padding: '1rem', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
-              <label style={{ color: '#ffffff', display: 'block', marginBottom: '0.75rem' }}>{question.text}</label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                {[1,2,3,4,5].map(score => (
-                  <button
-                    key={score}
-                    type="button"
-                    onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
-                    style={{
-                      backgroundColor: editFormData[question.key] === score ? '#3b82f6' : '#374151',
-                      color: 'white',
-                      padding: '0.5rem 1rem',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      minWidth: '40px'
-                    }}
-                  >
-                    {score}
-                  </button>
-                ))}
-              </div>
-              <textarea
-                placeholder="Comments..."
-                value={editFormData[`${question.key}_comment`] || ''}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setEditFormData(prev => ({...prev, [`${question.key}_comment`]: newValue}));
-                }}
-                style={{ 
-                  width: '100%', 
-                  margin: '0.5rem 0', 
-                  padding: '0.75rem',
-                  backgroundColor: '#1a1a1a',
-                  color: '#ffffff',
-                  border: '1px solid #444',
-                  borderRadius: '6px',
-                  minHeight: '80px',
-                  resize: 'vertical',
-                  overflowAnchor: 'none'
-                }}
-                rows="3"
-              />
-            </div>
-          ))}
-
-          {/* Final Comment */}
-          <h3 style={{ color: '#ffffff', borderBottom: '1px solid #333', paddingBottom: '0.5rem', marginTop: '2rem' }}>Final Comment</h3>
-          <textarea
-            placeholder="Overall comments..."
-            value={editFormData.final_comment || ''}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setEditFormData(prev => ({...prev, final_comment: newValue}));
-            }}
-            style={{ 
-              width: '100%', 
-              margin: '0.5rem 0', 
-              padding: '0.75rem',
-              backgroundColor: '#2a2a2a',
-              color: '#ffffff',
-              border: '1px solid #444',
-              borderRadius: '6px',
-              minHeight: '100px',
-              resize: 'vertical',
-              overflowAnchor: 'none'
-            }}
-            rows="4"
-          />
-        </div>
-
-        <div style={{ marginTop: '2rem', textAlign: 'right', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-          <button 
-            onClick={() => setShowEditModal(false)}
-            style={{ 
-              padding: '0.75rem 1.5rem',
-              backgroundColor: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel (ESC)
-          </button>
-          <button 
-            onClick={handleSaveEdit}
-            style={{ 
-              padding: '0.75rem 1.5rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-);
-
-  return (
-    <div className="app-container">
-      <div className="app-header">
-        <div className="header-content">
-          <button 
-            onClick={() => setCurrentView('reporting')}
-            className="back-button"
-          >
-            <ArrowLeft className="back-icon" />
-          </button>
-          <Home className="header-icon" />
-          <div>
- <h1 className="header-title">
-  QC SESSIONS | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
-</h1>
-            <div className="lead-breakdown">
-              <span className="breakdown-item">📊 Lead Breakdown:</span>
-              <span className="breakdown-status active">🟢 Active {activeCalls}</span>
-              <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
-              <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="main-content">
-  <div className="qc-section">
-    <h2 className="qc-title">📞 Session Details</h2>
-    <div className="qc-calls-grid">
-      {agentSessions.map((session, index) => (
+    // Session Detail Modal
+    const SessionDetailModal = () => {
+      return showSessionDetail && selectedSession && (
         <div 
-          key={session.id} 
-          className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
-          onClick={() => handleSessionClick(session.id)}
-          style={{ cursor: 'pointer', position: 'relative', padding: '1.5rem' }}
+          className="modal-overlay" 
+          onClick={() => setShowSessionDetail(false)}
         >
-          <div className="qc-call-header">
-            <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-              {session.property_address} - {session.overall_score}%
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="session-detail-header">
+              <div>
+                <h2>Session Details - {selectedAgent.name}</h2>
+                <p><strong>Property:</strong> {selectedSession.property_address}</p>
+                <p><strong>Date:</strong> {selectedSession.call_date} {selectedSession.call_time}</p>
+                <p><strong>Lead Status:</strong> {selectedSession.lead_status}</p>
+                <p><strong>QC Agent:</strong> {selectedSession.qc_agents?.name}</p>
+                <p><strong>Overall Score:</strong> {selectedSession.overall_score}%</p>
+              </div>
+              <button onClick={() => setShowSessionDetail(false)}>✕</button>
             </div>
-            <div style={{ fontSize: '14px', color: '#888', marginBottom: '1rem' }}>
-              {session.qc_agents?.name} - {session.call_date} | {selectedAgent.name} - {session.overall_score}% Overall
+
+            {/* Binary Questions */}
+            <div className="session-section">
+              <h3>Binary Questions</h3>
+              {selectedSession.binary_scores && selectedSession.binary_scores.length > 0 && (
+                <div>
+                  {binaryQuestions.map((question) => {
+                    const score = selectedSession.binary_scores[0][question.key];
+                    return (
+                      <div key={question.key} className="question-result">
+                        <div><strong>{question.text}</strong></div>
+                        <span className={`score-badge ${score === true ? 'yes' : score === false ? 'no' : 'na'}`}>
+                          {score === true ? 'Yes' : score === false ? 'No' : 'N/A'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: '14px', color: '#666', textAlign: 'center', marginBottom: '1rem' }}>
-              Click here to view more info
+
+            {/* Category Ratings */}
+            <div className="session-section">
+              <h3>Category Ratings</h3>
+              {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
+                <div>
+                  {ratedQuestions.map((question) => {
+                    const score = selectedSession.category_scores[0][question.key];
+                    const comment = selectedSession.category_scores[0][`${question.key}_comment`];
+                    return (
+                      <div key={question.key} className="category-result">
+                        <div className="category-header">
+                          <strong>{question.category}</strong>
+                          <span className={`score-badge rating-${score >= 4 ? 'high' : score >= 3 ? 'medium' : 'low'}`}>
+                            {score || 'N/A'}/5
+                          </span>
+                        </div>
+                        <p className="question-text">{question.text}</p>
+                        {comment && (
+                          <div className="comment-box">
+                            <strong>QC Comment:</strong>
+                            <p>{comment}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-          
-          <div className="qc-call-time" style={{ marginBottom: '1rem' }}>
-            🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)
-          </div>
-          
-          <div className="session-actions" style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: '0.5rem'
-          }}>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEditSession(session.id);
-              }}
-              style={{ 
-                padding: '0.4rem 0.8rem',
-                backgroundColor: 'orange',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
-            >
-              Edit
-            </button>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteSession(session.id);
-              }}
-              style={{ 
-                padding: '0.4rem 0.8rem',
-                backgroundColor: 'red',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
-            >
-              Delete
-            </button>
+
+            {/* Closing Questions */}
+            <div className="session-section">
+              <h3>Closing Questions</h3>
+              {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
+                <div>
+                  {closingQuestions.map((question) => {
+                    const score = selectedSession.category_scores[0][question.key];
+                    const comment = selectedSession.category_scores[0][`${question.key}_comment`];
+                    return (
+                      <div key={question.key} className="category-result">
+                        <div className="category-header">
+                          <strong>{question.text} ({Math.round(question.weight * 100)}% weight)</strong>
+                          <span className={`score-badge rating-${score >= 4 ? 'high' : score >= 3 ? 'medium' : 'low'}`}>
+                            {score || 'N/A'}/5
+                          </span>
+                        </div>
+                        {comment && (
+                          <div className="comment-box">
+                            <strong>QC Comment:</strong>
+                            <p>{comment}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Final Comment */}
+            {selectedSession.final_comment && (
+              <div className="session-section">
+                <h3>Final Comment</h3>
+                <div className="comment-box">
+                  {selectedSession.final_comment}
+                </div>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button onClick={() => setShowSessionDetail(false)}>Close (ESC)</button>
+            </div>
           </div>
         </div>
-      ))}
-    </div>
-  </div>
+      );
+    };
 
-        {Object.entries(selectedAgent.scores).map(([category, score]) => (
-          <div key={category} className="category-section">
-            <div className="category-header">
-              <span className="category-icon">
-                {category === 'Bonding & Rapport' && '🤝'}
-                {category === 'Magic Problem' && '🔍'}
-                {category === 'Second Ask' && '❓'}
-                {category === 'Objection Handling' && '⚡'}
-                {category === 'Closing' && '🎯'}
-              </span>
-              <h3 className="category-title">{category} ({score}%)</h3>
+    // Edit Modal with fixed scroll issue
+    const EditModal = () => (
+      showEditModal && (
+        <div className="modal-overlay">
+          <div className="modal-content edit-modal">
+            <h2>Edit QC Session</h2>
+            
+            <div className="edit-form">
+              {/* Call Details */}
+              <h3>Call Details</h3>
+              <input
+                type="text"
+                placeholder="Property Address"
+                value={editFormData.property_address || ''}
+                onChange={(e) => {
+                  e.persist();
+                  const value = e.target.value;
+                  setEditFormData(prev => ({...prev, property_address: value}));
+                }}
+                className="form-input"
+              />
+              
+              <select
+                value={editFormData.lead_status || 'Active'}
+                onChange={(e) => {
+                  e.persist();
+                  const value = e.target.value;
+                  setEditFormData(prev => ({...prev, lead_status: value}));
+                }}
+                className="form-select"
+              >
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Dead">Dead</option>
+              </select>
+
+              {/* Binary Questions */}
+              <h3>Binary Questions</h3>
+              {binaryQuestions.map((question) => (
+                <div key={question.key} className="binary-question-edit">
+                  <label>{question.text}</label>
+                  <div className="binary-options">
+                    <button
+                      type="button"
+                      className={editFormData[question.key] === true ? 'active yes' : 'yes'}
+                      onClick={() => setEditFormData(prev => ({...prev, [question.key]: true}))}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      className={editFormData[question.key] === false ? 'active no' : 'no'}
+                      onClick={() => setEditFormData(prev => ({...prev, [question.key]: false}))}
+                    >
+                      No
+                    </button>
+                    <button
+                      type="button"
+                      className={editFormData[question.key] === null ? 'active na' : 'na'}
+                      onClick={() => setEditFormData(prev => ({...prev, [question.key]: null}))}
+                    >
+                      N/A
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Category Ratings */}
+              <h3>Category Ratings (1-5)</h3>
+              {ratedQuestions.map((question) => (
+                <div key={question.key} className="rating-category-edit">
+                  <label>{question.category}</label>
+                  <div className="rating-buttons">
+                    {[1,2,3,4,5].map(score => (
+                      <button
+                        key={score}
+                        type="button"
+                        className={editFormData[question.key] === score ? 'active' : ''}
+                        onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder="Comments..."
+                    value={editFormData[`${question.key}_comment`] || ''}
+                    onChange={(e) => {
+                      e.persist();
+                      const value = e.target.value;
+                      setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+                    }}
+                    className="form-textarea"
+                    rows="3"
+                  />
+                </div>
+              ))}
+
+              {/* Closing Questions */}
+              <h3>Closing Questions</h3>
+              {closingQuestions.map((question) => (
+                <div key={question.key} className="rating-category-edit">
+                  <label>{question.text}</label>
+                  <div className="rating-buttons">
+                    {[1,2,3,4,5].map(score => (
+                      <button
+                        key={score}
+                        type="button"
+                        className={editFormData[question.key] === score ? 'active' : ''}
+                        onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder="Comments..."
+                    value={editFormData[`${question.key}_comment`] || ''}
+                    onChange={(e) => {
+                      e.persist();
+                      const value = e.target.value;
+                      setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+                    }}
+                    className="form-textarea"
+                    rows="3"
+                  />
+                </div>
+              ))}
+
+              {/* Final Comment */}
+              <h3>Final Comment</h3>
+              <textarea
+                placeholder="Overall comments..."
+                value={editFormData.final_comment || ''}
+                onChange={(e) => {
+                  e.persist();
+                  const value = e.target.value;
+                  setEditFormData(prev => ({...prev, final_comment: value}));
+                }}
+                className="form-textarea"
+                rows="4"
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setShowEditModal(false)}>Cancel (ESC)</button>
+              <button onClick={handleSaveEdit} className="primary">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )
+    );
+
+    return (
+      <div className="app-container">
+        <div className="app-header">
+          <div className="header-content">
+            <button 
+              onClick={() => setCurrentView('reporting')}
+              className="back-button"
+            >
+              <ArrowLeft className="back-icon" />
+            </button>
+            <Home className="header-icon" />
+            <div>
+              <h1 className="header-title">
+                QC SESSIONS | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
+              </h1>
+              <div className="lead-breakdown">
+                <span className="breakdown-item">📊 Lead Breakdown:</span>
+                <span className="breakdown-status active">🟢 Active {activeCalls}</span>
+                <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
+                <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="main-content">
+          <div className="qc-section">
+            <h2 className="qc-title">📞 Session Details</h2>
+            <div className="qc-calls-grid">
+              {agentSessions.map((session) => (
+                <div 
+                  key={session.id} 
+                  className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
+                  onClick={() => handleSessionClick(session.id)}
+                >
+                  <div className="qc-call-header">
+                    <div className="session-title">
+                      {session.property_address} - {session.overall_score}%
+                    </div>
+                    <div className="session-meta">
+                      {session.qc_agents?.name} - {session.call_date} | {selectedAgent.name} - {session.overall_score}% Overall
+                    </div>
+                    <div className="click-hint">
+                      Click here to view more info
+                    </div>
+                  </div>
+                  
+                  <div className="qc-call-time">
+                    🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)
+                  </div>
+                  
+                  <div className="session-actions">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditSession(session.id);
+                      }}
+                      className="edit-btn"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSession(session.id);
+                      }}
+                      className="delete-btn"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {Object.entries(selectedAgent.scores).map(([category, score]) => (
+            <div key={category} className="category-section">
+              <div className="category-header">
+                <span className="category-icon">
+                  {category === 'Bonding & Rapport' && '🤝'}
+                  {category === 'Magic Problem' && '🔍'}
+                  {category === 'Second Ask' && '❓'}
+                  {category === 'Objection Handling' && '⚡'}
+                  {category === 'Closing' && '🎯'}
+                </span>
+                <h3 className="category-title">{category} ({score}%)</h3>
+              </div>
+              
+              <div className="coaching-insight">
+                <span className="insight-icon">💡</span>
+                <span className="insight-text">
+                  <strong>QC Comment Summaries:</strong> 
+                  {generateQCCommentSummary(category, selectedAgent.id)}
+                </span>
+              </div>
+            </div>
+          ))}
+
+          <div className="claude-section">
+            <div className="claude-header">
+              <div className="claude-avatar">C</div>
+              <h3 className="claude-title">Claude's Clever Comment</h3>
             </div>
             
-            <div className="coaching-insight">
-              <span className="insight-icon">💡</span>
-              <span className="insight-text">
-                <strong>QC Comment Summaries:</strong> 
-                {generateQCCommentSummary(category, selectedAgent.id)}
-              </span>
+            <div className="claude-comment">
+              <p className="claude-text">
+                "{selectedAgent.name}'s showing real promise with some standout strengths! 
+                {Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).length > 0 && 
+                  ` Absolutely crushing it in ${Object.entries(selectedAgent.scores)
+                    .filter(([_, score]) => score >= 90)
+                    .map(([category]) => category)
+                    .join(' and ')} with ${Math.max(...Object.values(selectedAgent.scores))}% - that's elite territory!`
+                }
+                {selectedAgent.overallScore >= 80 ? 
+                  ` With an ${selectedAgent.overallScore}% overall, they're consistently delivering quality calls. ` :
+                  selectedAgent.overallScore >= 70 ?
+                  ` At ${selectedAgent.overallScore}% overall, they're building solid momentum. ` :
+                  ` At ${selectedAgent.overallScore}% overall, there's clear growth opportunity. `
+                }
+                The data shows focusing on 
+                {Object.entries(selectedAgent.scores)
+                  .filter(([_, score]) => score < 70)
+                  .map(([category]) => category)
+                  .slice(0, 2)
+                  .join(' and ') || 'maintaining current performance'} 
+                could unlock their next level!"
+              </p>
             </div>
           </div>
-        ))}
 
-        <div className="claude-section">
-          <div className="claude-header">
-            <div className="claude-avatar">C</div>
-            <h3 className="claude-title">Claude's Clever Comment</h3>
-          </div>
-          
-          <div className="claude-comment">
-            <p className="claude-text">
-              "{selectedAgent.name}'s showing real promise with some standout strengths! 
-              {Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).length > 0 && 
-                ` Absolutely crushing it in ${Object.entries(selectedAgent.scores)
-                  .filter(([_, score]) => score >= 90)
-                  .map(([category]) => category)
-                  .join(' and ')} with ${Math.max(...Object.values(selectedAgent.scores))}% - that's elite territory!`
-              }
-              {selectedAgent.overallScore >= 80 ? 
-                ` With an ${selectedAgent.overallScore}% overall, they're consistently delivering quality calls. ` :
-                selectedAgent.overallScore >= 70 ?
-                ` At ${selectedAgent.overallScore}% overall, they're building solid momentum. ` :
-                ` At ${selectedAgent.overallScore}% overall, there's clear growth opportunity. `
-              }
-              The data shows focusing on 
-              {Object.entries(selectedAgent.scores)
-                .filter(([_, score]) => score < 70)
-                .map(([category]) => category)
-                .slice(0, 2)
-                .join(' and ') || 'maintaining current performance'} 
-              could unlock their next level!"
-            </p>
-          </div>
+          {showSessionDetail && <SessionDetailModal />}
+          {showEditModal && <EditModal />}
         </div>
-
-        {showSessionDetail && <SessionDetailModal />}
-        {showEditModal && <EditModal />}
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   /* ========== QC SCORING COMPONENT SECTION ========== */
   const QCScoringView = () => {
     const [selectedQCAgent, setSelectedQCAgent] = useState(null);
     const [selectedAgentToScore, setSelectedAgentToScore] = useState(null);
     const [formData, setFormData] = useState({
-      /* ========== BINARY QUESTIONS DATA ========== */
       intro: null,
       first_ask: null,
       property_condition: null,
-      /* ========== 1-5 RATED QUESTIONS DATA ========== */
       bonding_rapport: 3,
       bonding_rapport_comment: '',
       bonding_rapport_skills: [],
@@ -1482,7 +1200,6 @@ const SessionDetailModal = () => {
       objection_handling_skills: [],
       selected_objections: [],
       new_objection: '',
-      /* ========== CLOSING QUESTIONS DATA ========== */
       closing_offer_presentation: 3,
       closing_offer_comment: '',
       closing_motivation: 3,
@@ -1490,7 +1207,6 @@ const SessionDetailModal = () => {
       closing_objections: 3,
       closing_objections_comment: '',
       closing_skills: [],
-      /* ========== SESSION DETAILS DATA ========== */
       property_address: '',
       lead_status: 'Active',
       call_date: new Date().toISOString().split('T')[0],
@@ -1502,37 +1218,33 @@ const SessionDetailModal = () => {
     const [showTrainingRedirect, setShowTrainingRedirect] = useState(false);
     const [trainingData, setTrainingData] = useState(null);
 
-    /* ========== TRAINING LIBRARY AUTO-REDIRECT LOGIC ========== */
-const analyzeForTraining = (categoryScores) => {
-  const trainingCandidates = [];
-  
-  // Check each category for high scores + positive sentiment
-  Object.entries(categoryScores).forEach(([category, data]) => {
-    if (data.score >= 4) {
-      const comment = data.comment || '';
-      const positiveWords = ['great', 'excellent', 'amazing', 'outstanding', 'superb', 'fantastic', 'good', 'well', 'strong', 'solid', 'confident'];
-      const hasPositiveLanguage = comment.length > 0 && positiveWords.some(word => 
-        comment.toLowerCase().includes(word)
-      );
+    const analyzeForTraining = (categoryScores) => {
+      const trainingCandidates = [];
       
-      // Log for debugging
-      console.log(`Category: ${category}, Score: ${data.score}, Comment: "${comment}", HasPositive: ${hasPositiveLanguage}`);
-      
-      if (hasPositiveLanguage || data.score === 5) { // Auto-include perfect scores
-        trainingCandidates.push({
-          category: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-          score: data.score,
-          comment: comment
-        });
-      }
-    }
-  });
+      Object.entries(categoryScores).forEach(([category, data]) => {
+        if (data.score >= 4) {
+          const comment = data.comment || '';
+          const positiveWords = ['great', 'excellent', 'amazing', 'outstanding', 'superb', 'fantastic', 'good', 'well', 'strong', 'solid', 'confident'];
+          const hasPositiveLanguage = comment.length > 0 && positiveWords.some(word => 
+            comment.toLowerCase().includes(word)
+          );
+          
+          console.log(`Category: ${category}, Score: ${data.score}, Comment: "${comment}", HasPositive: ${hasPositiveLanguage}`);
+          
+          if (hasPositiveLanguage || data.score === 5) {
+            trainingCandidates.push({
+              category: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              score: data.score,
+              comment: comment
+            });
+          }
+        }
+      });
 
-  console.log('Training candidates found:', trainingCandidates);
-  return trainingCandidates;
-};
+      console.log('Training candidates found:', trainingCandidates);
+      return trainingCandidates;
+    };
 
-    /* ========== FORM SUBMISSION SECTION ========== */
     const handleSubmit = async (e) => {
       e.preventDefault();
       if (!selectedQCAgent || !selectedAgentToScore) {
@@ -1543,14 +1255,12 @@ const analyzeForTraining = (categoryScores) => {
       setSubmitting(true);
 
       try {
-        // Prepare binary scores
         const binaryScores = {
           intro: formData.intro,
           first_ask: formData.first_ask,
           property_condition: formData.property_condition
         };
 
-        // Prepare category scores
         const categoryScores = {
           bonding_rapport: formData.bonding_rapport,
           magic_problem: formData.magic_problem,
@@ -1561,10 +1271,8 @@ const analyzeForTraining = (categoryScores) => {
           closing_objections: formData.closing_objections
         };
 
-        // Calculate overall score using weighted system
         const overallScore = calculateOverallScore(binaryScores, categoryScores);
 
-        // Create QC session
         const { data: sessionData, error: sessionError } = await supabase
           .from('qc_sessions')
           .insert([
@@ -1585,7 +1293,6 @@ const analyzeForTraining = (categoryScores) => {
 
         if (sessionError) throw sessionError;
 
-        // Create binary scores
         const { error: binaryError } = await supabase
           .from('binary_scores')
           .insert([
@@ -1599,7 +1306,6 @@ const analyzeForTraining = (categoryScores) => {
 
         if (binaryError) throw binaryError;
 
-        // Create category scores with comments and skills
         const { error: categoryError } = await supabase
           .from('category_scores')
           .insert([
@@ -1629,8 +1335,6 @@ const analyzeForTraining = (categoryScores) => {
 
         if (categoryError) throw categoryError;
 
-        /* ========== OBJECTION LIBRARY UPDATE SECTION ========== */
-        // Update objection usage counts and add new objections
         if (formData.selected_objections.length > 0) {
           for (const objectionId of formData.selected_objections) {
             await supabase
@@ -1640,7 +1344,6 @@ const analyzeForTraining = (categoryScores) => {
           }
         }
 
-        // Add new objection if provided
         if (formData.new_objection.trim()) {
           await supabase
             .from('objections_library')
@@ -1653,44 +1356,38 @@ const analyzeForTraining = (categoryScores) => {
             ]);
         }
 
-        // Show success message
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
 
-       /* ========== TRAINING LIBRARY AUTO-REDIRECT SECTION ========== */
-// Analyze scores and comments for training opportunities
-const categoryData = {
-  bonding_rapport: { score: formData.bonding_rapport, comment: formData.bonding_rapport_comment },
-  magic_problem: { score: formData.magic_problem, comment: formData.magic_problem_comment },
-  second_ask: { score: formData.second_ask, comment: formData.second_ask_comment },
-  closing_offer_presentation: { score: formData.closing_offer_presentation, comment: formData.closing_offer_comment },
-  closing_motivation: { score: formData.closing_motivation, comment: formData.closing_motivation_comment },
-  closing_objections: { score: formData.closing_objections, comment: formData.closing_objections_comment }
-};
+        const categoryData = {
+          bonding_rapport: { score: formData.bonding_rapport, comment: formData.bonding_rapport_comment },
+          magic_problem: { score: formData.magic_problem, comment: formData.magic_problem_comment },
+          second_ask: { score: formData.second_ask, comment: formData.second_ask_comment },
+          closing_offer_presentation: { score: formData.closing_offer_presentation, comment: formData.closing_offer_comment },
+          closing_motivation: { score: formData.closing_motivation, comment: formData.closing_motivation_comment },
+          closing_objections: { score: formData.closing_objections, comment: formData.closing_objections_comment }
+        };
 
-console.log('Analyzing category data:', categoryData); // Debug log
-const trainingCandidates = analyzeForTraining(categoryData);
-console.log('Training candidates result:', trainingCandidates); // Debug log
+        console.log('Analyzing category data:', categoryData);
+        const trainingCandidates = analyzeForTraining(categoryData);
+        console.log('Training candidates result:', trainingCandidates);
 
-if (trainingCandidates.length > 0) {
-  const selectedAgent = agents.find(agent => agent.id === selectedAgentToScore);
-  setTrainingData({
-    agentName: selectedAgent?.name || 'Unknown',
-    categories: trainingCandidates,
-    propertyAddress: formData.property_address,
-    callDate: formData.call_date,
-    callTime: formData.call_time
-  });
-  
-  // Show training redirect after short delay
-  setTimeout(() => {
-    setShowTrainingRedirect(true);
-  }, 1500);
-}
-        // Reset form
+        if (trainingCandidates.length > 0) {
+          const selectedAgent = agents.find(agent => agent.id === selectedAgentToScore);
+          setTrainingData({
+            agentName: selectedAgent?.name || 'Unknown',
+            categories: trainingCandidates,
+            propertyAddress: formData.property_address,
+            callDate: formData.call_date,
+            callTime: formData.call_time
+          });
+          
+          setTimeout(() => {
+            setShowTrainingRedirect(true);
+          }, 1500);
+        }
+
         resetForm();
-        
-        // Refresh the data
         await fetchAgentsData();
         
       } catch (error) {
@@ -1701,7 +1398,6 @@ if (trainingCandidates.length > 0) {
       }
     };
 
-    /* ========== FORM RESET SECTION ========== */
     const resetForm = () => {
       setFormData({
         intro: null,
@@ -1738,7 +1434,6 @@ if (trainingCandidates.length > 0) {
       setSelectedAgentToScore(null);
     };
 
-    /* ========== SKILLS MANAGEMENT SECTION ========== */
     const addSkill = (category, skill) => {
       const skillsKey = `${category}_skills`;
       setFormData(prev => ({
@@ -1770,7 +1465,7 @@ if (trainingCandidates.length > 0) {
           category: category,
           usage_count: 1
         }]);
-      await fetchSkillsLibrary(); // Refresh the library
+      await fetchSkillsLibrary();
     };
 
     const removeSkillByText = (category, skillText) => {
@@ -1781,7 +1476,6 @@ if (trainingCandidates.length > 0) {
       }));
     };
 
-    /* ========== N/A FUNCTIONALITY SECTION ========== */
     const handleNAToggle = (field) => {
       setFormData(prev => ({
         ...prev,
@@ -1789,7 +1483,6 @@ if (trainingCandidates.length > 0) {
       }));
     };
 
-    /* ========== TRAINING LIBRARY REDIRECT COMPONENT ========== */
     const TrainingRedirectModal = () => (
       <div className="training-modal-overlay">
         <div className="training-modal">
@@ -1827,7 +1520,6 @@ if (trainingCandidates.length > 0) {
             <button 
               onClick={async () => {
                 try {
-                  // Save each training example
                   for (let index = 0; index < trainingData.categories.length; index++) {
                     const category = trainingData.categories[index];
                     const timestampInput = document.querySelectorAll('.timestamp-input input')[index];
@@ -1860,7 +1552,6 @@ if (trainingCandidates.length > 0) {
       </div>
     );
 
-    /* ========== QC SCORING FORM RENDER SECTION ========== */
     return (
       <div className="app-container">
         <div className="app-header">
@@ -1873,46 +1564,27 @@ if (trainingCandidates.length > 0) {
             </button>
             <Home className="header-icon" />
             <div>
-              <h1 className="header-title">QC Scoring Interface</h1>
-              <p className="header-subtitle">Submit performance evaluations</p>
+              <h1 className="header-title">QC Scoring Interface</h1><p className="header-subtitle">Submit performance evaluations</p>
             </div>
           </div>
         </div>
 
-       {/* Success Message Overlay */}
-{showSuccess && (
-  <div className="success-overlay" style={{
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    zIndex: 2000,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
-  }}>
-    <div className="success-message" style={{
-      backgroundColor: '#22c55e',
-      color: 'white',
-      padding: '2rem 3rem',
-      borderRadius: '12px',
-      fontSize: '24px',
-      fontWeight: 'bold',
-      textAlign: 'center'
-    }}>
-      QC EVALUATION SUBMITTED SUCCESSFULLY!
-    </div>
-  </div>
-)}
+        {/* Success Message Overlay */}
+        {showSuccess && (
+          <div className="success-overlay">
+            <div className="success-message">
+              QC EVALUATION SUBMITTED SUCCESSFULLY!
+            </div>
+          </div>
+        )}
+
         {/* Training Library Redirect Modal */}
         {showTrainingRedirect && trainingData && <TrainingRedirectModal />}
 
         <div className="main-content">
           <form onSubmit={handleSubmit} className="qc-form">
             
-            {/* ========== QC AGENT SELECTION SECTION ========== */}
+            {/* QC Agent Selection */}
             <div className="form-section">
               <h3 className="section-title">QC Agent</h3>
               <div className="qc-agent-selection">
@@ -1929,27 +1601,27 @@ if (trainingCandidates.length > 0) {
               </div>
             </div>
 
-            {/* ========== AGENT TO SCORE SELECTION SECTION ========== */}
+            {/* Agent to Score Selection */}
             <div className="form-section">
               <h3 className="section-title">Agent to Score</h3>
-         <select 
-  value={selectedAgentToScore || ''}
-  onChange={(e) => setSelectedAgentToScore(e.target.value)}
-  className="agent-select"
-  required
->
-  <option value="">Select Agent</option>
-  {agents
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(agent => (
-      <option key={agent.id} value={agent.id}>
-        {agent.name}
-      </option>
-    ))}
-</select>
+              <select 
+                value={selectedAgentToScore || ''}
+                onChange={(e) => setSelectedAgentToScore(e.target.value)}
+                className="agent-select"
+                required
+              >
+                <option value="">Select Agent</option>
+                {agents
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(agent => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </option>
+                  ))}
+              </select>
             </div>
 
-            {/* ========== CALL DETAILS SECTION ========== */}
+            {/* Call Details */}
             <div className="form-section">
               <h3 className="section-title">Call Details</h3>
               <div className="call-details-simple">
@@ -2039,11 +1711,11 @@ if (trainingCandidates.length > 0) {
               </div>
             </div>
 
-            {/* ========== BINARY QUESTIONS SECTION ========== */}
+            {/* Binary Questions */}
             <div className="form-section">
               <h3 className="section-title">Binary Questions (Yes/No/N/A)</h3>
               
-              {binaryQuestions.map((question, index) => (
+              {binaryQuestions.map((question) => (
                 <div key={question.key} className="binary-question">
                   <label>{question.text}</label>
                   <div className="binary-options">
@@ -2073,7 +1745,7 @@ if (trainingCandidates.length > 0) {
               ))}
             </div>
 
-            {/* ========== 1-5 RATED QUESTIONS SECTION ========== */}
+            {/* Performance Ratings */}
             <div className="form-section">
               <h3 className="section-title">Performance Ratings (1-5) with Comments & Skills</h3>
               
@@ -2084,7 +1756,6 @@ if (trainingCandidates.length > 0) {
                     <label>{question.text}</label>
                   </div>
                   
-                  {/* Rating Buttons with N/A option */}
                   <div className="rating-section">
                     <div className="rating-buttons">
                       {[1,2,3,4,5].map(score => (
@@ -2108,7 +1779,6 @@ if (trainingCandidates.length > 0) {
                     </div>
                   </div>
 
-                  {/* Comments Section */}
                   <div className="comments-section">
                     <label>Comments (Narrative):</label>
                     <textarea
@@ -2120,7 +1790,6 @@ if (trainingCandidates.length > 0) {
                     />
                   </div>
 
-                  {/* Skills Section */}
                   <div className="skills-section">
                     <label>Skills & Techniques Used:</label>
                     
@@ -2185,7 +1854,7 @@ if (trainingCandidates.length > 0) {
               ))}
             </div>
 
-            {/* ========== CLOSING QUESTIONS SECTION ========== */}
+            {/* Closing Questions */}
             <div className="form-section">
               <h3 className="section-title">The Close (3 Weighted Questions)</h3>
               
@@ -2232,7 +1901,7 @@ if (trainingCandidates.length > 0) {
               ))}
             </div>
 
-            {/* ========== OBJECTION HANDLING LIBRARY SECTION ========== */}
+            {/* Objection Library */}
             <div className="form-section">
               <h3 className="section-title">Objection Library (for Objection Handling category)</h3>
               
@@ -2279,7 +1948,7 @@ if (trainingCandidates.length > 0) {
               </div>
             </div>
 
-            {/* ========== FINAL COMMENT SECTION ========== */}
+            {/* Final Comment */}
             <div className="form-section">
               <h3 className="section-title">Final Comment</h3>
               <textarea
