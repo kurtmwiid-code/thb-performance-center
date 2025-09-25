@@ -975,10 +975,11 @@ const App = () => {
                     placeholder="Comments..."
                     value={editFormData[`${question.key}_comment`] || ''}
                     onChange={(e) => {
-                      e.persist();
-                      const value = e.target.value;
-                      setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
-                    }}
+    e.preventDefault();
+    e.stopPropagation();
+    const value = e.target.value;
+    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+  }}
                     className="form-textarea"
                     rows="3"
                   />
@@ -1005,11 +1006,12 @@ const App = () => {
                   <textarea
                     placeholder="Comments..."
                     value={editFormData[`${question.key}_comment`] || ''}
-                    onChange={(e) => {
-                      e.persist();
-                      const value = e.target.value;
-                      setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
-                    }}
+                  onChange={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const value = e.target.value;
+    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+  }}
                     className="form-textarea"
                     rows="3"
                   />
@@ -1022,10 +1024,11 @@ const App = () => {
                 placeholder="Overall comments..."
                 value={editFormData.final_comment || ''}
                 onChange={(e) => {
-                  e.persist();
-                  const value = e.target.value;
-                  setEditFormData(prev => ({...prev, final_comment: value}));
-                }}
+    e.preventDefault();
+    e.stopPropagation();
+    const value = e.target.value;
+    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+  }}
                 className="form-textarea"
                 rows="4"
               />
