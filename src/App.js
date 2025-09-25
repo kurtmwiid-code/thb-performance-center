@@ -727,6 +727,7 @@ const App = () => {
 
         const newOverallScore = calculateOverallScore(binaryScores, categoryScores);
 
+ 
         // Update overall score
         await supabase
           .from('qc_sessions')
@@ -887,7 +888,7 @@ const App = () => {
       );
     };
 
-    // Edit Modal with fixed scroll issue
+    // Edit Modal with FIXED scroll issue
     const EditModal = () => (
       showEditModal && (
         <div className="modal-overlay">
@@ -902,7 +903,6 @@ const App = () => {
                 placeholder="Property Address"
                 value={editFormData.property_address || ''}
                 onChange={(e) => {
-                  e.persist();
                   const value = e.target.value;
                   setEditFormData(prev => ({...prev, property_address: value}));
                 }}
@@ -912,7 +912,6 @@ const App = () => {
               <select
                 value={editFormData.lead_status || 'Active'}
                 onChange={(e) => {
-                  e.persist();
                   const value = e.target.value;
                   setEditFormData(prev => ({...prev, lead_status: value}));
                 }}
@@ -975,11 +974,9 @@ const App = () => {
                     placeholder="Comments..."
                     value={editFormData[`${question.key}_comment`] || ''}
                     onChange={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const value = e.target.value;
-    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
-  }}
+                      const value = e.target.value;
+                      setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+                    }}
                     className="form-textarea"
                     rows="3"
                   />
@@ -1006,12 +1003,10 @@ const App = () => {
                   <textarea
                     placeholder="Comments..."
                     value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const value = e.target.value;
-    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
-  }}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+                    }}
                     className="form-textarea"
                     rows="3"
                   />
@@ -1024,11 +1019,9 @@ const App = () => {
                 placeholder="Overall comments..."
                 value={editFormData.final_comment || ''}
                 onChange={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const value = e.target.value;
-    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
-  }}
+                  const value = e.target.value;
+                  setEditFormData(prev => ({...prev, final_comment: value}));
+                }}
                 className="form-textarea"
                 rows="4"
               />
