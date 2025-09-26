@@ -749,13 +749,24 @@ const DeepDiveView = () => {
     }
   };
 
-  // Centralized handler to prevent re-render issues
-  const handleFormChange = (fieldName, value) => {
+  // MEMOIZED handlers to prevent re-renders
+  const handleFormChange = useCallback((fieldName, value) => {
     setEditFormData(prevData => ({
       ...prevData,
       [fieldName]: value
     }));
-  };
+  }, []);
+
+  // Create individual handlers for each field to prevent re-renders
+  const createTextareaHandler = useCallback((fieldName) => {
+    return (e) => {
+      const value = e.target.value;
+      setEditFormData(prev => ({
+        ...prev,
+        [fieldName]: value
+      }));
+    };
+  }, []);
 
   const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
   const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
@@ -882,7 +893,45 @@ const DeepDiveView = () => {
     );
   };
 
-  // FOCUS FIX - Edit Modal with unique keys to prevent React from losing focus
+  // UNCONTROLLED TEXTAREA COMPONENT - Different approach
+  const UncontrolledTextarea = React.memo(({ fieldName, placeholder, rows, initialValue }) => {
+    const textareaRef = useRef(null);
+
+    useEffect(() => {
+      if (textareaRef.current && initialValue !== undefined) {
+        textareaRef.current.value = initialValue || '';
+      }
+    }, [initialValue]);
+
+    const handleChange = (e) => {
+      const value = e.target.value;
+      setEditFormData(prev => ({
+        ...prev,
+        [fieldName]: value
+      }));
+    };
+
+    return (
+      <textarea
+        ref={textareaRef}
+        placeholder={placeholder}
+        onChange={handleChange}
+        className="form-textarea"
+        rows={rows}
+        defaultValue={initialValue || ''}
+        style={{
+          width: '100%', 
+          boxSizing: 'border-box',
+          resize: 'vertical',
+          padding: '8px',
+          fontSize: '14px',
+          fontFamily: 'inherit'
+        }}
+      />
+    );
+  });
+
+  // ALTERNATIVE: Edit Modal with uncontrolled textareas
   const EditModal = () => {
     if (!showEditModal) return null;
 
@@ -943,7 +992,7 @@ const DeepDiveView = () => {
               </div>
             ))}
 
-            {/* Category Ratings - FOCUS FIX WITH UNIQUE KEYS */}
+            {/* Category Ratings - UNCONTROLLED TEXTAREAS */}
             <h3>Category Ratings (1-5)</h3>
             {ratedQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -960,28 +1009,16 @@ const DeepDiveView = () => {
                     </button>
                   ))}
                 </div>
-                <textarea
-                  key={`${question.key}_comment_${editingSession}`}
+                <UncontrolledTextarea
+                  fieldName={`${question.key}_comment`}
                   placeholder="Comments..."
-                  value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
-                  onFocus={(e) => e.target.style.outline = '2px solid #4A90E2'}
-                  onBlur={(e) => e.target.style.outline = 'none'}
-                  className="form-textarea"
-                  rows="3"
-                  style={{
-                    width: '100%', 
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
-                    padding: '8px',
-                    fontSize: '14px',
-                    fontFamily: 'inherit'
-                  }}
+                  rows={3}
+                  initialValue={editFormData[`${question.key}_comment`]}
                 />
               </div>
             ))}
 
-            {/* Closing Questions - FOCUS FIX WITH UNIQUE KEYS */}
+            {/* Closing Questions - UNCONTROLLED TEXTAREAS */}
             <h3>Closing Questions</h3>
             {closingQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -998,46 +1035,22 @@ const DeepDiveView = () => {
                     </button>
                   ))}
                 </div>
-                <textarea
-                  key={`${question.key}_comment_${editingSession}`}
+                <UncontrolledTextarea
+                  fieldName={`${question.key}_comment`}
                   placeholder="Comments..."
-                  value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
-                  onFocus={(e) => e.target.style.outline = '2px solid #4A90E2'}
-                  onBlur={(e) => e.target.style.outline = 'none'}
-                  className="form-textarea"
-                  rows="3"
-                  style={{
-                    width: '100%', 
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
-                    padding: '8px',
-                    fontSize: '14px',
-                    fontFamily: 'inherit'
-                  }}
+                  rows={3}
+                  initialValue={editFormData[`${question.key}_comment`]}
                 />
               </div>
             ))}
 
-            {/* Final Comment - FOCUS FIX WITH UNIQUE KEY */}
+            {/* Final Comment - UNCONTROLLED TEXTAREA */}
             <h3>Final Comment</h3>
-            <textarea
-              key={`final_comment_${editingSession}`}
+            <UncontrolledTextarea
+              fieldName="final_comment"
               placeholder="Overall comments..."
-              value={editFormData.final_comment || ''}
-              onChange={(e) => handleFormChange('final_comment', e.target.value)}
-              onFocus={(e) => e.target.style.outline = '2px solid #4A90E2'}
-              onBlur={(e) => e.target.style.outline = 'none'}
-              className="form-textarea"
-              rows="4"
-              style={{
-                width: '100%', 
-                boxSizing: 'border-box',
-                resize: 'vertical',
-                padding: '8px',
-                fontSize: '14px',
-                fontFamily: 'inherit'
-              }}
+              rows={4}
+              initialValue={editFormData.final_comment}
             />
           </div>
 
