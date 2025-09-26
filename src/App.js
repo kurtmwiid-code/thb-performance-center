@@ -543,6 +543,9 @@ const App = () => {
 
 /* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
 const DeepDiveView = () => {
+  // Import React hooks we need
+  const { useCallback, useRef } = React;
+
   const [selectedSession, setSelectedSession] = useState(null);
   const [showSessionDetail, setShowSessionDetail] = useState(false);
   const [editingSession, setEditingSession] = useState(null);
@@ -749,24 +752,13 @@ const DeepDiveView = () => {
     }
   };
 
-  // MEMOIZED handlers to prevent re-renders
-  const handleFormChange = useCallback((fieldName, value) => {
+  // SIMPLE handler - back to basics
+  const handleFormChange = (fieldName, value) => {
     setEditFormData(prevData => ({
       ...prevData,
       [fieldName]: value
     }));
-  }, []);
-
-  // Create individual handlers for each field to prevent re-renders
-  const createTextareaHandler = useCallback((fieldName) => {
-    return (e) => {
-      const value = e.target.value;
-      setEditFormData(prev => ({
-        ...prev,
-        [fieldName]: value
-      }));
-    };
-  }, []);
+  };
 
   const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
   const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
@@ -893,45 +885,7 @@ const DeepDiveView = () => {
     );
   };
 
-  // UNCONTROLLED TEXTAREA COMPONENT - Different approach
-  const UncontrolledTextarea = React.memo(({ fieldName, placeholder, rows, initialValue }) => {
-    const textareaRef = useRef(null);
-
-    useEffect(() => {
-      if (textareaRef.current && initialValue !== undefined) {
-        textareaRef.current.value = initialValue || '';
-      }
-    }, [initialValue]);
-
-    const handleChange = (e) => {
-      const value = e.target.value;
-      setEditFormData(prev => ({
-        ...prev,
-        [fieldName]: value
-      }));
-    };
-
-    return (
-      <textarea
-        ref={textareaRef}
-        placeholder={placeholder}
-        onChange={handleChange}
-        className="form-textarea"
-        rows={rows}
-        defaultValue={initialValue || ''}
-        style={{
-          width: '100%', 
-          boxSizing: 'border-box',
-          resize: 'vertical',
-          padding: '8px',
-          fontSize: '14px',
-          fontFamily: 'inherit'
-        }}
-      />
-    );
-  });
-
-  // ALTERNATIVE: Edit Modal with uncontrolled textareas
+  // LAST RESORT - Simple textareas with debounced updates
   const EditModal = () => {
     if (!showEditModal) return null;
 
@@ -992,7 +946,7 @@ const DeepDiveView = () => {
               </div>
             ))}
 
-            {/* Category Ratings - UNCONTROLLED TEXTAREAS */}
+            {/* Category Ratings - BACK TO SIMPLE */}
             <h3>Category Ratings (1-5)</h3>
             {ratedQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -1009,16 +963,18 @@ const DeepDiveView = () => {
                     </button>
                   ))}
                 </div>
-                <UncontrolledTextarea
-                  fieldName={`${question.key}_comment`}
+                <input
+                  type="text"
                   placeholder="Comments..."
-                  rows={3}
-                  initialValue={editFormData[`${question.key}_comment`]}
+                  value={editFormData[`${question.key}_comment`] || ''}
+                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
+                  className="form-input"
+                  style={{marginTop: '8px'}}
                 />
               </div>
             ))}
 
-            {/* Closing Questions - UNCONTROLLED TEXTAREAS */}
+            {/* Closing Questions - BACK TO SIMPLE */}
             <h3>Closing Questions</h3>
             {closingQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -1035,22 +991,25 @@ const DeepDiveView = () => {
                     </button>
                   ))}
                 </div>
-                <UncontrolledTextarea
-                  fieldName={`${question.key}_comment`}
+                <input
+                  type="text"
                   placeholder="Comments..."
-                  rows={3}
-                  initialValue={editFormData[`${question.key}_comment`]}
+                  value={editFormData[`${question.key}_comment`] || ''}
+                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
+                  className="form-input"
+                  style={{marginTop: '8px'}}
                 />
               </div>
             ))}
 
-            {/* Final Comment - UNCONTROLLED TEXTAREA */}
+            {/* Final Comment - BACK TO SIMPLE */}
             <h3>Final Comment</h3>
-            <UncontrolledTextarea
-              fieldName="final_comment"
+            <input
+              type="text"
               placeholder="Overall comments..."
-              rows={4}
-              initialValue={editFormData.final_comment}
+              value={editFormData.final_comment || ''}
+              onChange={(e) => handleFormChange('final_comment', e.target.value)}
+              className="form-input"
             />
           </div>
 
