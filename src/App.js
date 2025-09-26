@@ -608,61 +608,34 @@ const DeepDiveView = () => {
 
       if (error) throw error;
 
-      // Create stable edit data with ALL fields initialized
-      const stableEditData = {
+      // Initialize with completely stable data structure
+      const initialData = {
         property_address: data.property_address || '',
         lead_status: data.lead_status || 'Active',
         call_date: data.call_date || '',
         call_time: data.call_time || '',
         final_comment: data.final_comment || '',
-        intro: null,
-        first_ask: null,
-        property_condition: null,
-        bonding_rapport: null,
-        bonding_rapport_comment: '',
-        magic_problem: null,
-        magic_problem_comment: '',
-        second_ask: null,
-        second_ask_comment: '',
-        objection_handling: null,
-        objection_handling_comment: '',
-        closing_offer_presentation: null,
-        closing_offer_comment: '',
-        closing_motivation: null,
-        closing_motivation_comment: '',
-        closing_objections: null,
-        closing_objections_comment: ''
+        intro: data.binary_scores?.[0]?.intro || null,
+        first_ask: data.binary_scores?.[0]?.first_ask || null,
+        property_condition: data.binary_scores?.[0]?.property_condition || null,
+        bonding_rapport: data.category_scores?.[0]?.bonding_rapport || null,
+        bonding_rapport_comment: data.category_scores?.[0]?.bonding_rapport_comment || '',
+        magic_problem: data.category_scores?.[0]?.magic_problem || null,
+        magic_problem_comment: data.category_scores?.[0]?.magic_problem_comment || '',
+        second_ask: data.category_scores?.[0]?.second_ask || null,
+        second_ask_comment: data.category_scores?.[0]?.second_ask_comment || '',
+        objection_handling: data.category_scores?.[0]?.objection_handling || null,
+        objection_handling_comment: data.category_scores?.[0]?.objection_handling_comment || '',
+        closing_offer_presentation: data.category_scores?.[0]?.closing_offer_presentation || null,
+        closing_offer_comment: data.category_scores?.[0]?.closing_offer_comment || '',
+        closing_motivation: data.category_scores?.[0]?.closing_motivation || null,
+        closing_motivation_comment: data.category_scores?.[0]?.closing_motivation_comment || '',
+        closing_objections: data.category_scores?.[0]?.closing_objections || null,
+        closing_objections_comment: data.category_scores?.[0]?.closing_objections_comment || ''
       };
 
-      // Add binary scores
-      if (data.binary_scores && data.binary_scores.length > 0) {
-        const binaryData = data.binary_scores[0];
-        stableEditData.intro = binaryData.intro;
-        stableEditData.first_ask = binaryData.first_ask;
-        stableEditData.property_condition = binaryData.property_condition;
-      }
-
-      // Add category scores
-      if (data.category_scores && data.category_scores.length > 0) {
-        const categoryData = data.category_scores[0];
-        stableEditData.bonding_rapport = categoryData.bonding_rapport;
-        stableEditData.bonding_rapport_comment = categoryData.bonding_rapport_comment || '';
-        stableEditData.magic_problem = categoryData.magic_problem;
-        stableEditData.magic_problem_comment = categoryData.magic_problem_comment || '';
-        stableEditData.second_ask = categoryData.second_ask;
-        stableEditData.second_ask_comment = categoryData.second_ask_comment || '';
-        stableEditData.objection_handling = categoryData.objection_handling;
-        stableEditData.objection_handling_comment = categoryData.objection_handling_comment || '';
-        stableEditData.closing_offer_presentation = categoryData.closing_offer_presentation;
-        stableEditData.closing_offer_comment = categoryData.closing_offer_comment || '';
-        stableEditData.closing_motivation = categoryData.closing_motivation;
-        stableEditData.closing_motivation_comment = categoryData.closing_motivation_comment || '';
-        stableEditData.closing_objections = categoryData.closing_objections;
-        stableEditData.closing_objections_comment = categoryData.closing_objections_comment || '';
-      }
-
-      setEditFormData(stableEditData);
       setEditingSession(sessionId);
+      setEditFormData(initialData);
       setShowEditModal(true);
       
     } catch (error) {
@@ -774,6 +747,14 @@ const DeepDiveView = () => {
       console.error('Error deleting session:', error);
       alert('Error deleting session');
     }
+  };
+
+  // Centralized handler to prevent re-render issues
+  const handleFormChange = (fieldName, value) => {
+    setEditFormData(prevData => ({
+      ...prevData,
+      [fieldName]: value
+    }));
   };
 
   const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
@@ -901,7 +882,7 @@ const DeepDiveView = () => {
     );
   };
 
-  // COMPLETELY FIXED Edit Modal - NO MORE AUTO-SCROLL
+  // NUCLEAR FIX - Edit Modal with centralized handler
   const EditModal = () => {
     if (!showEditModal) return null;
 
@@ -917,23 +898,13 @@ const DeepDiveView = () => {
               type="text"
               placeholder="Property Address"
               value={editFormData.property_address || ''}
-              onChange={(e) => {
-                setEditFormData(current => ({
-                  ...current, 
-                  property_address: e.target.value
-                }));
-              }}
+              onChange={(e) => handleFormChange('property_address', e.target.value)}
               className="form-input"
             />
             
             <select
               value={editFormData.lead_status || 'Active'}
-              onChange={(e) => {
-                setEditFormData(current => ({
-                  ...current, 
-                  lead_status: e.target.value
-                }));
-              }}
+              onChange={(e) => handleFormChange('lead_status', e.target.value)}
               className="form-select"
             >
               <option value="Active">Active</option>
@@ -950,30 +921,21 @@ const DeepDiveView = () => {
                   <button
                     type="button"
                     className={editFormData[question.key] === true ? 'active yes' : 'yes'}
-                    onClick={() => setEditFormData(current => ({
-                      ...current, 
-                      [question.key]: true
-                    }))}
+                    onClick={() => handleFormChange(question.key, true)}
                   >
                     Yes
                   </button>
                   <button
                     type="button"
                     className={editFormData[question.key] === false ? 'active no' : 'no'}
-                    onClick={() => setEditFormData(current => ({
-                      ...current, 
-                      [question.key]: false
-                    }))}
+                    onClick={() => handleFormChange(question.key, false)}
                   >
                     No
                   </button>
                   <button
                     type="button"
                     className={editFormData[question.key] === null ? 'active na' : 'na'}
-                    onClick={() => setEditFormData(current => ({
-                      ...current, 
-                      [question.key]: null
-                    }))}
+                    onClick={() => handleFormChange(question.key, null)}
                   >
                     N/A
                   </button>
@@ -981,7 +943,7 @@ const DeepDiveView = () => {
               </div>
             ))}
 
-            {/* Category Ratings - FIXED TEXTAREA HANDLERS */}
+            {/* Category Ratings - NUCLEAR FIX */}
             <h3>Category Ratings (1-5)</h3>
             {ratedQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -992,10 +954,7 @@ const DeepDiveView = () => {
                       key={score}
                       type="button"
                       className={editFormData[question.key] === score ? 'active' : ''}
-                      onClick={() => setEditFormData(current => ({
-                        ...current, 
-                        [question.key]: score
-                      }))}
+                      onClick={() => handleFormChange(question.key, score)}
                     >
                       {score}
                     </button>
@@ -1004,21 +963,15 @@ const DeepDiveView = () => {
                 <textarea
                   placeholder="Comments..."
                   value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => {
-                    const fieldName = `${question.key}_comment`;
-                    const newValue = e.target.value;
-                    setEditFormData(current => ({
-                      ...current,
-                      [fieldName]: newValue
-                    }));
-                  }}
+                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
                   className="form-textarea"
                   rows="3"
+                  style={{width: '100%', boxSizing: 'border-box'}}
                 />
               </div>
             ))}
 
-            {/* Closing Questions - FIXED TEXTAREA HANDLERS */}
+            {/* Closing Questions - NUCLEAR FIX */}
             <h3>Closing Questions</h3>
             {closingQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -1029,10 +982,7 @@ const DeepDiveView = () => {
                       key={score}
                       type="button"
                       className={editFormData[question.key] === score ? 'active' : ''}
-                      onClick={() => setEditFormData(current => ({
-                        ...current, 
-                        [question.key]: score
-                      }))}
+                      onClick={() => handleFormChange(question.key, score)}
                     >
                       {score}
                     </button>
@@ -1041,34 +991,23 @@ const DeepDiveView = () => {
                 <textarea
                   placeholder="Comments..."
                   value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => {
-                    const fieldName = `${question.key}_comment`;
-                    const newValue = e.target.value;
-                    setEditFormData(current => ({
-                      ...current,
-                      [fieldName]: newValue
-                    }));
-                  }}
+                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
                   className="form-textarea"
                   rows="3"
+                  style={{width: '100%', boxSizing: 'border-box'}}
                 />
               </div>
             ))}
 
-            {/* Final Comment - FIXED TEXTAREA HANDLER */}
+            {/* Final Comment - NUCLEAR FIX */}
             <h3>Final Comment</h3>
             <textarea
               placeholder="Overall comments..."
               value={editFormData.final_comment || ''}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                setEditFormData(current => ({
-                  ...current, 
-                  final_comment: newValue
-                }));
-              }}
+              onChange={(e) => handleFormChange('final_comment', e.target.value)}
               className="form-textarea"
               rows="4"
+              style={{width: '100%', boxSizing: 'border-box'}}
             />
           </div>
 
@@ -1218,7 +1157,6 @@ const DeepDiveView = () => {
     </div>
   );
 };
-
 
   /* ========== QC SCORING COMPONENT SECTION ========== */
   const QCScoringView = () => {
