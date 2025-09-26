@@ -882,7 +882,7 @@ const DeepDiveView = () => {
     );
   };
 
-  // NUCLEAR FIX - Edit Modal with centralized handler
+  // FOCUS FIX - Edit Modal with unique keys to prevent React from losing focus
   const EditModal = () => {
     if (!showEditModal) return null;
 
@@ -943,7 +943,7 @@ const DeepDiveView = () => {
               </div>
             ))}
 
-            {/* Category Ratings - NUCLEAR FIX */}
+            {/* Category Ratings - FOCUS FIX WITH UNIQUE KEYS */}
             <h3>Category Ratings (1-5)</h3>
             {ratedQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -961,17 +961,27 @@ const DeepDiveView = () => {
                   ))}
                 </div>
                 <textarea
+                  key={`${question.key}_comment_${editingSession}`}
                   placeholder="Comments..."
                   value={editFormData[`${question.key}_comment`] || ''}
                   onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
+                  onFocus={(e) => e.target.style.outline = '2px solid #4A90E2'}
+                  onBlur={(e) => e.target.style.outline = 'none'}
                   className="form-textarea"
                   rows="3"
-                  style={{width: '100%', boxSizing: 'border-box'}}
+                  style={{
+                    width: '100%', 
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                    padding: '8px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit'
+                  }}
                 />
               </div>
             ))}
 
-            {/* Closing Questions - NUCLEAR FIX */}
+            {/* Closing Questions - FOCUS FIX WITH UNIQUE KEYS */}
             <h3>Closing Questions</h3>
             {closingQuestions.map((question) => (
               <div key={question.key} className="rating-category-edit">
@@ -989,25 +999,45 @@ const DeepDiveView = () => {
                   ))}
                 </div>
                 <textarea
+                  key={`${question.key}_comment_${editingSession}`}
                   placeholder="Comments..."
                   value={editFormData[`${question.key}_comment`] || ''}
                   onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
+                  onFocus={(e) => e.target.style.outline = '2px solid #4A90E2'}
+                  onBlur={(e) => e.target.style.outline = 'none'}
                   className="form-textarea"
                   rows="3"
-                  style={{width: '100%', boxSizing: 'border-box'}}
+                  style={{
+                    width: '100%', 
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                    padding: '8px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit'
+                  }}
                 />
               </div>
             ))}
 
-            {/* Final Comment - NUCLEAR FIX */}
+            {/* Final Comment - FOCUS FIX WITH UNIQUE KEY */}
             <h3>Final Comment</h3>
             <textarea
+              key={`final_comment_${editingSession}`}
               placeholder="Overall comments..."
               value={editFormData.final_comment || ''}
               onChange={(e) => handleFormChange('final_comment', e.target.value)}
+              onFocus={(e) => e.target.style.outline = '2px solid #4A90E2'}
+              onBlur={(e) => e.target.style.outline = 'none'}
               className="form-textarea"
               rows="4"
-              style={{width: '100%', boxSizing: 'border-box'}}
+              style={{
+                width: '100%', 
+                boxSizing: 'border-box',
+                resize: 'vertical',
+                padding: '8px',
+                fontSize: '14px',
+                fontFamily: 'inherit'
+              }}
             />
           </div>
 
@@ -1157,7 +1187,6 @@ const DeepDiveView = () => {
     </div>
   );
 };
-
   /* ========== QC SCORING COMPONENT SECTION ========== */
   const QCScoringView = () => {
     const [selectedQCAgent, setSelectedQCAgent] = useState(null);
