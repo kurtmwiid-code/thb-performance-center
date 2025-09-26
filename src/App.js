@@ -541,7 +541,7 @@ const App = () => {
     </div>
   );
 
- /* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
+/* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
 const DeepDiveView = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [showSessionDetail, setShowSessionDetail] = useState(false);
@@ -608,13 +608,30 @@ const DeepDiveView = () => {
 
       if (error) throw error;
 
-      // Create stable edit data
+      // Create stable edit data with ALL fields initialized
       const stableEditData = {
         property_address: data.property_address || '',
         lead_status: data.lead_status || 'Active',
         call_date: data.call_date || '',
         call_time: data.call_time || '',
         final_comment: data.final_comment || '',
+        intro: null,
+        first_ask: null,
+        property_condition: null,
+        bonding_rapport: null,
+        bonding_rapport_comment: '',
+        magic_problem: null,
+        magic_problem_comment: '',
+        second_ask: null,
+        second_ask_comment: '',
+        objection_handling: null,
+        objection_handling_comment: '',
+        closing_offer_presentation: null,
+        closing_offer_comment: '',
+        closing_motivation: null,
+        closing_motivation_comment: '',
+        closing_objections: null,
+        closing_objections_comment: ''
       };
 
       // Add binary scores
@@ -646,10 +663,7 @@ const DeepDiveView = () => {
 
       setEditFormData(stableEditData);
       setEditingSession(sessionId);
-      
-      setTimeout(() => {
-        setShowEditModal(true);
-      }, 10);
+      setShowEditModal(true);
       
     } catch (error) {
       console.error('Error loading session for edit:', error);
@@ -887,9 +901,11 @@ const DeepDiveView = () => {
     );
   };
 
-  // FIXED Edit Modal - NO MORE AUTO-SCROLL
-  const EditModal = () => (
-    showEditModal && (
+  // COMPLETELY FIXED Edit Modal - NO MORE AUTO-SCROLL
+  const EditModal = () => {
+    if (!showEditModal) return null;
+
+    return (
       <div className="modal-overlay">
         <div className="modal-content edit-modal">
           <h2>Edit QC Session</h2>
@@ -902,8 +918,10 @@ const DeepDiveView = () => {
               placeholder="Property Address"
               value={editFormData.property_address || ''}
               onChange={(e) => {
-                const value = e.target.value;
-                setEditFormData(prev => ({...prev, property_address: value}));
+                setEditFormData(current => ({
+                  ...current, 
+                  property_address: e.target.value
+                }));
               }}
               className="form-input"
             />
@@ -911,8 +929,10 @@ const DeepDiveView = () => {
             <select
               value={editFormData.lead_status || 'Active'}
               onChange={(e) => {
-                const value = e.target.value;
-                setEditFormData(prev => ({...prev, lead_status: value}));
+                setEditFormData(current => ({
+                  ...current, 
+                  lead_status: e.target.value
+                }));
               }}
               className="form-select"
             >
@@ -930,21 +950,30 @@ const DeepDiveView = () => {
                   <button
                     type="button"
                     className={editFormData[question.key] === true ? 'active yes' : 'yes'}
-                    onClick={() => setEditFormData(prev => ({...prev, [question.key]: true}))}
+                    onClick={() => setEditFormData(current => ({
+                      ...current, 
+                      [question.key]: true
+                    }))}
                   >
                     Yes
                   </button>
                   <button
                     type="button"
                     className={editFormData[question.key] === false ? 'active no' : 'no'}
-                    onClick={() => setEditFormData(prev => ({...prev, [question.key]: false}))}
+                    onClick={() => setEditFormData(current => ({
+                      ...current, 
+                      [question.key]: false
+                    }))}
                   >
                     No
                   </button>
                   <button
                     type="button"
                     className={editFormData[question.key] === null ? 'active na' : 'na'}
-                    onClick={() => setEditFormData(prev => ({...prev, [question.key]: null}))}
+                    onClick={() => setEditFormData(current => ({
+                      ...current, 
+                      [question.key]: null
+                    }))}
                   >
                     N/A
                   </button>
@@ -963,7 +992,10 @@ const DeepDiveView = () => {
                       key={score}
                       type="button"
                       className={editFormData[question.key] === score ? 'active' : ''}
-                      onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
+                      onClick={() => setEditFormData(current => ({
+                        ...current, 
+                        [question.key]: score
+                      }))}
                     >
                       {score}
                     </button>
@@ -973,8 +1005,12 @@ const DeepDiveView = () => {
                   placeholder="Comments..."
                   value={editFormData[`${question.key}_comment`] || ''}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+                    const fieldName = `${question.key}_comment`;
+                    const newValue = e.target.value;
+                    setEditFormData(current => ({
+                      ...current,
+                      [fieldName]: newValue
+                    }));
                   }}
                   className="form-textarea"
                   rows="3"
@@ -993,7 +1029,10 @@ const DeepDiveView = () => {
                       key={score}
                       type="button"
                       className={editFormData[question.key] === score ? 'active' : ''}
-                      onClick={() => setEditFormData(prev => ({...prev, [question.key]: score}))}
+                      onClick={() => setEditFormData(current => ({
+                        ...current, 
+                        [question.key]: score
+                      }))}
                     >
                       {score}
                     </button>
@@ -1003,8 +1042,12 @@ const DeepDiveView = () => {
                   placeholder="Comments..."
                   value={editFormData[`${question.key}_comment`] || ''}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    setEditFormData(prev => ({...prev, [`${question.key}_comment`]: value}));
+                    const fieldName = `${question.key}_comment`;
+                    const newValue = e.target.value;
+                    setEditFormData(current => ({
+                      ...current,
+                      [fieldName]: newValue
+                    }));
                   }}
                   className="form-textarea"
                   rows="3"
@@ -1018,8 +1061,11 @@ const DeepDiveView = () => {
               placeholder="Overall comments..."
               value={editFormData.final_comment || ''}
               onChange={(e) => {
-                const value = e.target.value;
-                setEditFormData(prev => ({...prev, final_comment: value}));
+                const newValue = e.target.value;
+                setEditFormData(current => ({
+                  ...current, 
+                  final_comment: newValue
+                }));
               }}
               className="form-textarea"
               rows="4"
@@ -1032,8 +1078,8 @@ const DeepDiveView = () => {
           </div>
         </div>
       </div>
-    )
-  );
+    );
+  };
 
   return (
     <div className="app-container">
@@ -1172,6 +1218,7 @@ const DeepDiveView = () => {
     </div>
   );
 };
+
 
   /* ========== QC SCORING COMPONENT SECTION ========== */
   const QCScoringView = () => {
