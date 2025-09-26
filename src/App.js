@@ -542,10 +542,290 @@ const App = () => {
   );
 
 /* ========== DEEP DIVE VIEW COMPONENT SECTION ========== */
-const DeepDiveView = () => {
-  // Import React hooks we need
-  const { useCallback, useRef } = React;
 
+// Move EditModal and SessionDetailModal OUTSIDE of DeepDiveView to prevent recreation
+const EditModal = React.memo(({ 
+  showEditModal, 
+  setShowEditModal, 
+  editFormData, 
+  setEditFormData, 
+  editingSession,
+  handleSaveEdit,
+  binaryQuestions,
+  ratedQuestions,
+  closingQuestions 
+}) => {
+  // Stable handler using useCallback
+  const handleFormChange = React.useCallback((fieldName, value) => {
+    setEditFormData(prevData => ({
+      ...prevData,
+      [fieldName]: value
+    }));
+  }, [setEditFormData]);
+
+  if (!showEditModal) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content edit-modal">
+        <h2>Edit QC Session</h2>
+        
+        <div className="edit-form">
+          {/* Call Details */}
+          <h3>Call Details</h3>
+          <input
+            type="text"
+            placeholder="Property Address"
+            value={editFormData.property_address || ''}
+            onChange={(e) => handleFormChange('property_address', e.target.value)}
+            className="form-input"
+          />
+          
+          <select
+            value={editFormData.lead_status || 'Active'}
+            onChange={(e) => handleFormChange('lead_status', e.target.value)}
+            className="form-select"
+          >
+            <option value="Active">Active</option>
+            <option value="Pending">Pending</option>
+            <option value="Dead">Dead</option>
+          </select>
+
+          {/* Binary Questions */}
+          <h3>Binary Questions</h3>
+          {binaryQuestions.map((question) => (
+            <div key={question.key} className="binary-question-edit">
+              <label>{question.text}</label>
+              <div className="binary-options">
+                <button
+                  type="button"
+                  className={editFormData[question.key] === true ? 'active yes' : 'yes'}
+                  onClick={() => handleFormChange(question.key, true)}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  className={editFormData[question.key] === false ? 'active no' : 'no'}
+                  onClick={() => handleFormChange(question.key, false)}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  className={editFormData[question.key] === null ? 'active na' : 'na'}
+                  onClick={() => handleFormChange(question.key, null)}
+                >
+                  N/A
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Category Ratings - FIXED TEXTAREAS */}
+          <h3>Category Ratings (1-5)</h3>
+          {ratedQuestions.map((question) => (
+            <div key={question.key} className="rating-category-edit">
+              <label>{question.category}</label>
+              <div className="rating-buttons">
+                {[1,2,3,4,5].map(score => (
+                  <button
+                    key={score}
+                    type="button"
+                    className={editFormData[question.key] === score ? 'active' : ''}
+                    onClick={() => handleFormChange(question.key, score)}
+                  >
+                    {score}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                placeholder="Comments..."
+                value={editFormData[`${question.key}_comment`] || ''}
+                onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
+                className="form-textarea"
+                rows={3}
+              />
+            </div>
+          ))}
+
+          {/* Closing Questions - FIXED TEXTAREAS */}
+          <h3>Closing Questions</h3>
+          {closingQuestions.map((question) => (
+            <div key={question.key} className="rating-category-edit">
+              <label>{question.text}</label>
+              <div className="rating-buttons">
+                {[1,2,3,4,5].map(score => (
+                  <button
+                    key={score}
+                    type="button"
+                    className={editFormData[question.key] === score ? 'active' : ''}
+                    onClick={() => handleFormChange(question.key, score)}
+                  >
+                    {score}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                placeholder="Comments..."
+                value={editFormData[`${question.key}_comment`] || ''}
+                onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
+                className="form-textarea"
+                rows={3}
+              />
+            </div>
+          ))}
+
+          {/* Final Comment - FIXED TEXTAREA */}
+          <h3>Final Comment</h3>
+          <textarea
+            placeholder="Overall comments..."
+            value={editFormData.final_comment || ''}
+            onChange={(e) => handleFormChange('final_comment', e.target.value)}
+            className="form-textarea"
+            rows={4}
+          />
+        </div>
+
+        <div className="modal-actions">
+          <button onClick={() => setShowEditModal(false)}>Cancel (ESC)</button>
+          <button onClick={handleSaveEdit} className="primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const SessionDetailModal = React.memo(({ 
+  showSessionDetail, 
+  setShowSessionDetail, 
+  selectedSession,
+  selectedAgent,
+  binaryQuestions,
+  ratedQuestions,
+  closingQuestions 
+}) => {
+  if (!showSessionDetail || !selectedSession) return null;
+
+  return (
+    <div 
+      className="modal-overlay" 
+      onClick={() => setShowSessionDetail(false)}
+    >
+      <div 
+        className="modal-content" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="session-detail-header">
+          <div>
+            <h2>Session Details - {selectedAgent.name}</h2>
+            <p><strong>Property:</strong> {selectedSession.property_address}</p>
+            <p><strong>Date:</strong> {selectedSession.call_date} {selectedSession.call_time}</p>
+            <p><strong>Lead Status:</strong> {selectedSession.lead_status}</p>
+            <p><strong>QC Agent:</strong> {selectedSession.qc_agents?.name}</p>
+            <p><strong>Overall Score:</strong> {selectedSession.overall_score}%</p>
+          </div>
+          <button onClick={() => setShowSessionDetail(false)}>✕</button>
+        </div>
+
+        {/* Binary Questions */}
+        <div className="session-section">
+          <h3>Binary Questions</h3>
+          {selectedSession.binary_scores && selectedSession.binary_scores.length > 0 && (
+            <div>
+              {binaryQuestions.map((question) => {
+                const score = selectedSession.binary_scores[0][question.key];
+                return (
+                  <div key={question.key} className="question-result">
+                    <div><strong>{question.text}</strong></div>
+                    <span className={`score-badge ${score === true ? 'yes' : score === false ? 'no' : 'na'}`}>
+                      {score === true ? 'Yes' : score === false ? 'No' : 'N/A'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Category Ratings */}
+        <div className="session-section">
+          <h3>Category Ratings</h3>
+          {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
+            <div>
+              {ratedQuestions.map((question) => {
+                const score = selectedSession.category_scores[0][question.key];
+                const comment = selectedSession.category_scores[0][`${question.key}_comment`];
+                return (
+                  <div key={question.key} className="category-result">
+                    <div className="category-header">
+                      <strong>{question.category}</strong>
+                      <span className={`score-badge rating-${score >= 4 ? 'high' : score >= 3 ? 'medium' : 'low'}`}>
+                        {score || 'N/A'}/5
+                      </span>
+                    </div>
+                    <p className="question-text">{question.text}</p>
+                    {comment && (
+                      <div className="comment-box">
+                        <strong>QC Comment:</strong>
+                        <p>{comment}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Closing Questions */}
+        <div className="session-section">
+          <h3>Closing Questions</h3>
+          {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
+            <div>
+              {closingQuestions.map((question) => {
+                const score = selectedSession.category_scores[0][question.key];
+                const comment = selectedSession.category_scores[0][`${question.key}_comment`];
+                return (
+                  <div key={question.key} className="category-result">
+                    <div className="category-header">
+                      <strong>{question.text} ({Math.round(question.weight * 100)}% weight)</strong>
+                      <span className={`score-badge rating-${score >= 4 ? 'high' : score >= 3 ? 'medium' : 'low'}`}>
+                        {score || 'N/A'}/5
+                      </span>
+                    </div>
+                    {comment && (
+                      <div className="comment-box">
+                        <strong>QC Comment:</strong>
+                        <p>{comment}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Final Comment */}
+        {selectedSession.final_comment && (
+          <div className="session-section">
+            <h3>Final Comment</h3>
+            <div className="comment-box">
+              {selectedSession.final_comment}
+            </div>
+          </div>
+        )}
+
+        <div className="modal-actions">
+          <button onClick={() => setShowSessionDetail(false)}>Close (ESC)</button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const DeepDiveView = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [showSessionDetail, setShowSessionDetail] = useState(false);
   const [editingSession, setEditingSession] = useState(null);
@@ -752,275 +1032,10 @@ const DeepDiveView = () => {
     }
   };
 
-  // SIMPLE handler - back to basics
-  const handleFormChange = (fieldName, value) => {
-    setEditFormData(prevData => ({
-      ...prevData,
-      [fieldName]: value
-    }));
-  };
-
   const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
   const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
   const pendingCalls = agentSessions.filter(session => session.lead_status === 'Pending').length;
   const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;
-
-  // Session Detail Modal
-  const SessionDetailModal = () => {
-    return showSessionDetail && selectedSession && (
-      <div 
-        className="modal-overlay" 
-        onClick={() => setShowSessionDetail(false)}
-      >
-        <div 
-          className="modal-content" 
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="session-detail-header">
-            <div>
-              <h2>Session Details - {selectedAgent.name}</h2>
-              <p><strong>Property:</strong> {selectedSession.property_address}</p>
-              <p><strong>Date:</strong> {selectedSession.call_date} {selectedSession.call_time}</p>
-              <p><strong>Lead Status:</strong> {selectedSession.lead_status}</p>
-              <p><strong>QC Agent:</strong> {selectedSession.qc_agents?.name}</p>
-              <p><strong>Overall Score:</strong> {selectedSession.overall_score}%</p>
-            </div>
-            <button onClick={() => setShowSessionDetail(false)}>✕</button>
-          </div>
-
-          {/* Binary Questions */}
-          <div className="session-section">
-            <h3>Binary Questions</h3>
-            {selectedSession.binary_scores && selectedSession.binary_scores.length > 0 && (
-              <div>
-                {binaryQuestions.map((question) => {
-                  const score = selectedSession.binary_scores[0][question.key];
-                  return (
-                    <div key={question.key} className="question-result">
-                      <div><strong>{question.text}</strong></div>
-                      <span className={`score-badge ${score === true ? 'yes' : score === false ? 'no' : 'na'}`}>
-                        {score === true ? 'Yes' : score === false ? 'No' : 'N/A'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Category Ratings */}
-          <div className="session-section">
-            <h3>Category Ratings</h3>
-            {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
-              <div>
-                {ratedQuestions.map((question) => {
-                  const score = selectedSession.category_scores[0][question.key];
-                  const comment = selectedSession.category_scores[0][`${question.key}_comment`];
-                  return (
-                    <div key={question.key} className="category-result">
-                      <div className="category-header">
-                        <strong>{question.category}</strong>
-                        <span className={`score-badge rating-${score >= 4 ? 'high' : score >= 3 ? 'medium' : 'low'}`}>
-                          {score || 'N/A'}/5
-                        </span>
-                      </div>
-                      <p className="question-text">{question.text}</p>
-                      {comment && (
-                        <div className="comment-box">
-                          <strong>QC Comment:</strong>
-                          <p>{comment}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Closing Questions */}
-          <div className="session-section">
-            <h3>Closing Questions</h3>
-            {selectedSession.category_scores && selectedSession.category_scores.length > 0 && (
-              <div>
-                {closingQuestions.map((question) => {
-                  const score = selectedSession.category_scores[0][question.key];
-                  const comment = selectedSession.category_scores[0][`${question.key}_comment`];
-                  return (
-                    <div key={question.key} className="category-result">
-                      <div className="category-header">
-                        <strong>{question.text} ({Math.round(question.weight * 100)}% weight)</strong>
-                        <span className={`score-badge rating-${score >= 4 ? 'high' : score >= 3 ? 'medium' : 'low'}`}>
-                          {score || 'N/A'}/5
-                        </span>
-                      </div>
-                      {comment && (
-                        <div className="comment-box">
-                          <strong>QC Comment:</strong>
-                          <p>{comment}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Final Comment */}
-          {selectedSession.final_comment && (
-            <div className="session-section">
-              <h3>Final Comment</h3>
-              <div className="comment-box">
-                {selectedSession.final_comment}
-              </div>
-            </div>
-          )}
-
-          <div className="modal-actions">
-            <button onClick={() => setShowSessionDetail(false)}>Close (ESC)</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // LAST RESORT - Simple textareas with debounced updates
-  const EditModal = () => {
-    if (!showEditModal) return null;
-
-    return (
-      <div className="modal-overlay">
-        <div className="modal-content edit-modal">
-          <h2>Edit QC Session</h2>
-          
-          <div className="edit-form">
-            {/* Call Details */}
-            <h3>Call Details</h3>
-            <input
-              type="text"
-              placeholder="Property Address"
-              value={editFormData.property_address || ''}
-              onChange={(e) => handleFormChange('property_address', e.target.value)}
-              className="form-input"
-            />
-            
-            <select
-              value={editFormData.lead_status || 'Active'}
-              onChange={(e) => handleFormChange('lead_status', e.target.value)}
-              className="form-select"
-            >
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Dead">Dead</option>
-            </select>
-
-            {/* Binary Questions */}
-            <h3>Binary Questions</h3>
-            {binaryQuestions.map((question) => (
-              <div key={question.key} className="binary-question-edit">
-                <label>{question.text}</label>
-                <div className="binary-options">
-                  <button
-                    type="button"
-                    className={editFormData[question.key] === true ? 'active yes' : 'yes'}
-                    onClick={() => handleFormChange(question.key, true)}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    type="button"
-                    className={editFormData[question.key] === false ? 'active no' : 'no'}
-                    onClick={() => handleFormChange(question.key, false)}
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    className={editFormData[question.key] === null ? 'active na' : 'na'}
-                    onClick={() => handleFormChange(question.key, null)}
-                  >
-                    N/A
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Category Ratings - BACK TO SIMPLE */}
-            <h3>Category Ratings (1-5)</h3>
-            {ratedQuestions.map((question) => (
-              <div key={question.key} className="rating-category-edit">
-                <label>{question.category}</label>
-                <div className="rating-buttons">
-                  {[1,2,3,4,5].map(score => (
-                    <button
-                      key={score}
-                      type="button"
-                      className={editFormData[question.key] === score ? 'active' : ''}
-                      onClick={() => handleFormChange(question.key, score)}
-                    >
-                      {score}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Comments..."
-                  value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
-                  className="form-input"
-                  style={{marginTop: '8px'}}
-                />
-              </div>
-            ))}
-
-            {/* Closing Questions - BACK TO SIMPLE */}
-            <h3>Closing Questions</h3>
-            {closingQuestions.map((question) => (
-              <div key={question.key} className="rating-category-edit">
-                <label>{question.text}</label>
-                <div className="rating-buttons">
-                  {[1,2,3,4,5].map(score => (
-                    <button
-                      key={score}
-                      type="button"
-                      className={editFormData[question.key] === score ? 'active' : ''}
-                      onClick={() => handleFormChange(question.key, score)}
-                    >
-                      {score}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Comments..."
-                  value={editFormData[`${question.key}_comment`] || ''}
-                  onChange={(e) => handleFormChange(`${question.key}_comment`, e.target.value)}
-                  className="form-input"
-                  style={{marginTop: '8px'}}
-                />
-              </div>
-            ))}
-
-            {/* Final Comment - BACK TO SIMPLE */}
-            <h3>Final Comment</h3>
-            <input
-              type="text"
-              placeholder="Overall comments..."
-              value={editFormData.final_comment || ''}
-              onChange={(e) => handleFormChange('final_comment', e.target.value)}
-              className="form-input"
-            />
-          </div>
-
-          <div className="modal-actions">
-            <button onClick={() => setShowEditModal(false)}>Cancel (ESC)</button>
-            <button onClick={handleSaveEdit} className="primary">Save Changes</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="app-container">
@@ -1153,8 +1168,27 @@ const DeepDiveView = () => {
           </div>
         </div>
 
-        {showSessionDetail && <SessionDetailModal />}
-        {showEditModal && <EditModal />}
+        <SessionDetailModal 
+          showSessionDetail={showSessionDetail}
+          setShowSessionDetail={setShowSessionDetail}
+          selectedSession={selectedSession}
+          selectedAgent={selectedAgent}
+          binaryQuestions={binaryQuestions}
+          ratedQuestions={ratedQuestions}
+          closingQuestions={closingQuestions}
+        />
+        
+        <EditModal 
+          showEditModal={showEditModal}
+          setShowEditModal={setShowEditModal}
+          editFormData={editFormData}
+          setEditFormData={setEditFormData}
+          editingSession={editingSession}
+          handleSaveEdit={handleSaveEdit}
+          binaryQuestions={binaryQuestions}
+          ratedQuestions={ratedQuestions}
+          closingQuestions={closingQuestions}
+        />
       </div>
     </div>
   );
