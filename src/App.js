@@ -110,6 +110,7 @@ const calculateOverallScore = (binaryScores, categoryScores) => {
 };
 
 /* ========== MAIN APP COMPONENT ========== */
+/* ========== MAIN APP COMPONENT ========== */
 const App = () => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedAgent, setSelectedAgent] = useState(null);
@@ -120,6 +121,10 @@ const App = () => {
   const [objectionLibrary, setObjectionLibrary] = useState([]);
   const [skillsLibrary, setSkillsLibrary] = useState([]);
 
+  // ADD THESE NEW ADMIN STATES HERE
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
   useEffect(() => {
     fetchAgentsData();
     fetchQCAgents();
@@ -127,9 +132,18 @@ const App = () => {
     fetchSkillsLibrary();
   }, []);
 
-  // ADD THESE NEW ADMIN STATES HERE
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  // Check URL for /admin route
+  useEffect(() => {
+    if (window.location.pathname === '/admin') {
+      const adminStatus = localStorage.getItem('thb_admin_logged_in');
+      if (adminStatus === 'true') {
+        setIsAdmin(true);
+        setCurrentView('admin-dashboard');
+      } else {
+        setCurrentView('admin-login');
+      }
+    }
+  }, []);
 
   // Check if already logged in as admin
   useEffect(() => {
