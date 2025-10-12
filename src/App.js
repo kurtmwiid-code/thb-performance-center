@@ -127,6 +127,19 @@ const App = () => {
     fetchSkillsLibrary();
   }, []);
 
+  // ADD THESE NEW ADMIN STATES HERE
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+  // Check if already logged in as admin
+  useEffect(() => {
+    const adminStatus = localStorage.getItem('thb_admin_logged_in');
+    if (adminStatus === 'true') {
+      setIsAdmin(true);
+    }
+  }, []);
+
+
   /* ========== DATA FETCHING SECTION ========== */
   const fetchQCAgents = async () => {
     try {
