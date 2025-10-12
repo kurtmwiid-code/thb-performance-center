@@ -109,7 +109,7 @@ const calculateOverallScore = (binaryScores, categoryScores) => {
   return Math.round((binaryWeighted + categoryWeighted) * 10) / 10;
 };
 
-/* ========== MAIN APP COMPONENT ========== */
+
 /* ========== MAIN APP COMPONENT ========== */
 const App = () => {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -2011,6 +2011,47 @@ const DeepDiveView = () => {
               {submitting ? 'Submitting...' : 'Submit QC Evaluation'}
             </button>
           </form>
+        </div>
+      </div>
+    );
+  };
+   /* ========== ADMIN LOGIN COMPONENT ========== */
+  const AdminLogin = () => {
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const handleLogin = (e) => {
+      e.preventDefault();
+      if (password === 'THB@Home') {
+        setIsAdmin(true);
+        localStorage.setItem('thb_admin_logged_in', 'true');
+        setCurrentView('admin-dashboard');
+        setError('');
+      } else {
+        setError('Incorrect password');
+      }
+    };
+
+    return (
+      <div className="app-container">
+        <div className="admin-login-container">
+          <div className="admin-login-card">
+            <h1 className="admin-title">🔐 THB Admin Access</h1>
+            <form onSubmit={handleLogin} className="admin-login-form">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter admin password"
+                className="admin-password-input"
+                autoFocus
+              />
+              {error && <div className="admin-error">{error}</div>}
+              <button type="submit" className="admin-login-btn">
+                Login
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
