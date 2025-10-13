@@ -2060,6 +2060,8 @@ const DeepDiveView = () => {
   /* ========== MAIN RENDER SECTION ========== */
   return (
     <div>
+      {currentView === 'admin-login' && <AdminLogin />}
+      {currentView === 'admin-dashboard' && isAdmin && <AdminDashboard />}
       {currentView === 'dashboard' && <Dashboard />}
       {currentView === 'reporting' && selectedAgent && <ReportingView />}
       {currentView === 'deepdive' && selectedAgent && <DeepDiveView />}
