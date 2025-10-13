@@ -2015,7 +2015,8 @@ const DeepDiveView = () => {
       </div>
     );
   };
-   /* ========== ADMIN LOGIN COMPONENT ========== */
+   
+  /* ========== ADMIN LOGIN COMPONENT ========== */
   const AdminLogin = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -2052,6 +2053,257 @@ const DeepDiveView = () => {
               </button>
             </form>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ========== ADMIN DASHBOARD COMPONENT ========== */
+  const AdminDashboard = () => {
+    const [newAgentName, setNewAgentName] = useState('');
+    const [newQCAgentName, setNewQCAgentName] = useState('');
+    const [adminLoading, setAdminLoading] = useState(false);
+
+    const handleLogout = () => {
+      setIsAdmin(false);
+      localStorage.removeItem('thb_admin_logged_in');
+      setCurrentView('dashboard');
+    };
+
+    const handleAddAgent = async (e) => {
+      e.preventDefault();
+      if (!newAgentName.trim()) return;
+
+      setAdminLoading(true);
+      try {
+        const { error } = await supabase
+          .from('agents')
+          .insert([{ name: newAgentName.trim() }]);
+
+        if (error) throw error;
+
+        alert(`✅ Agent "${newAgentName}" added successfully!`);
+        setNewAgentName('');
+        await fetchAgentsData();
+      } catch (error) {
+        console.error('Error adding agent:', error);
+        alert('Error adding agent');
+      } finally {
+        setAdminLoading(false);
+      }
+    };
+
+    const handleDeleteAgent = async (agentId, agentName) => {
+      const sessionsCount = sessions.filter(s => s.agent_id === agentId).length;
+      
+      const confirmed = window.confirm(
+        `⚠️ WARNING: This will permanently delete:\n\n` +
+        `• Agent: ${agentName}\n` +
+        `• ${sessionsCount} QC scoring session(s)\n` +
+        `• All associated performance data\n\n` +
+        `This action CANNOT be undone!\n\n` +
+        `Are you sure?`
+      );
+
+      if (!confirmed) return;
+
+      const userInput = prompt(`Type "${agentName}" to confirm deletion:`);
+      if (userInput !== agentName) {
+        alert('Deletion cancelled - name did not match');
+        return;
+      }
+
+      setAdminLoading(true);
+      try {
+        const { error } = await supabase
+          .from('agents')
+          .delete()
+          .eq('id', agentId);
+
+        if (error) throw error;
+
+        alert(`✅ Agent "${agentName}" and all records deleted successfully`);
+        await fetchAgentsData();
+      } catch (error) {
+        console.error('Error deleting agent:', error);
+        alert('Error deleting agent');
+      } finally {
+        setAdminLoading(false);
+      }
+    };
+
+    const handleAddQCAgent = async (e) => {
+      e.preventDefault();
+      if (!newQCAgentName.trim()) return;
+
+      setAdminLoading(true);
+      try {
+        const { error } = await supabase
+          .from('qc_agents')
+          .insert([{ name: newQCAgentName.trim() }]);
+
+        if (error) throw error;
+
+        alert(`✅ QC Agent "${newQCAgentName}" added successfully!`);
+        setNewQCAgentName('');
+        await fetchQCAgents();
+      } catch (error) {
+        console.error('Error adding QC agent:', error);
+        alert('Error adding QC agent');
+      } finally {
+        setAdminLoading(false);
+      }
+    };
+
+    const handleDeleteQCAgent = async (qcAgentId, qcAgentName) => {
+      const sessionsCount = sessions.filter(s => s.qc_agent_id === qcAgentId).length;
+      
+      const confirmed = window.confirm(
+        `⚠️ WARNING: This will permanently delete:\n\n` +
+        `• QC Agent: ${qcAgentName}\n` +
+        `• This may affect ${sessionsCount} QC session(s) they scored\n\n` +
+        `Continue?`
+      );
+
+      if (!confirmed) return;
+
+      setAdminLoading(true);
+      try {
+        const { error } = await supabase
+          .from('qc_agents')
+          .delete()
+          .eq('id', qcAgentId);
+
+        if (error) throw error;
+
+        alert(`✅ QC Agent "${qcAgentName}" deleted successfully`);
+        await fetchQCAgents();
+      } catch (error) {
+        console.error('Error deleting QC agent:', error);
+        alert('Error deleting QC agent');
+      } finally {
+        setAdminLoading(false);
+      }
+    };
+
+    return (
+      <div className="app-container">
+        <div className="app-header">
+          <div className="header-content">
+            <Home className="header-icon" />
+            <div>
+              <h1 className="header-title">🔧 THB Admin Dashboard</h1>
+              <p className="header-subtitle">Manage Agents & QC Agents</p>
+            </div>
+            <button onClick={handleLogout} className="admin-logout-btn">
+              Logout
+            </button>
+          </div>
+        </div>
+
+        <div className="main-content">
+          {/* Sales Reps Management */}
+          <div className="admin-section">
+            <h2 className="section-title">👥 Sales Representatives</h2>
+            
+            <form onSubmit={handleAddAgent} className="admin-form">
+              <input
+                type="text"
+                value={newAgentName}
+                onChange={(e) => setNewAgentName(e.target.value)}
+                placeholder="Enter new agent name"
+                className="admin-input"
+                disabled={adminLoading}
+              />
+              <button type="submit" className="admin-add-btn" disabled={adminLoading}>
+                {adminLoading ? 'Adding...' : '+ Add Agent'}
+              </button>
+            </form>
+
+            <div className="admin-list">
+              {agents.length === 0 ? (
+                <p className="admin-empty">No agents found</p>
+              ) : (
+                agents
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((agent) => {
+                    const agentSessions = sessions.filter(s => s.agent_id === agent.id).length;
+                    return (
+                      <div key={agent.id} className="admin-item">
+                        <div className="admin-item-info">
+                          <span className="admin-item-name">{agent.name}</span>
+                          <span className="admin-item-meta">
+                            {agentSessions} scoring session{agentSessions !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteAgent(agent.id, agent.name)}
+                          className="admin-delete-btn"
+                          disabled={adminLoading}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          </div>
+
+          {/* QC Agents Management */}
+          <div className="admin-section">
+            <h2 className="section-title">⭐ QC Agents</h2>
+            
+            <form onSubmit={handleAddQCAgent} className="admin-form">
+              <input
+                type="text"
+                value={newQCAgentName}
+                onChange={(e) => setNewQCAgentName(e.target.value)}
+                placeholder="Enter new QC agent name"
+                className="admin-input"
+                disabled={adminLoading}
+              />
+              <button type="submit" className="admin-add-btn" disabled={adminLoading}>
+                {adminLoading ? 'Adding...' : '+ Add QC Agent'}
+              </button>
+            </form>
+
+            <div className="admin-list">
+              {qcAgents.length === 0 ? (
+                <p className="admin-empty">No QC agents found</p>
+              ) : (
+                qcAgents
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((qcAgent) => {
+                    const qcSessions = sessions.filter(s => s.qc_agent_id === qcAgent.id).length;
+                    return (
+                      <div key={qcAgent.id} className="admin-item">
+                        <div className="admin-item-info">
+                          <span className="admin-item-name">{qcAgent.name}</span>
+                          <span className="admin-item-meta">
+                            {qcSessions} session{qcSessions !== 1 ? 's' : ''} scored
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteQCAgent(qcAgent.id, qcAgent.name)}
+                          className="admin-delete-btn"
+                          disabled={adminLoading}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setCurrentView('dashboard')}
+            className="admin-back-btn"
+          >
+            ← Back to Dashboard
+          </button>
         </div>
       </div>
     );
