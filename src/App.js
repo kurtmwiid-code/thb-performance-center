@@ -1103,6 +1103,7 @@ const App = () => {
     const [editingSession, setEditingSession] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editFormData, setEditFormData] = useState({});
+    const [agentSearchQuery, setAgentSearchQuery] = useState('');
 
     useEffect(() => {
       const handleEscKey = (event) => {
@@ -1222,10 +1223,15 @@ const App = () => {
       await archiveSession(sessionId);
     };
 
-    const agentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
-    const activeCalls = agentSessions.filter(session => session.lead_status === 'Active').length;
-    const pendingCalls = agentSessions.filter(session => session.lead_status === 'Pending').length;
-    const deadCalls = agentSessions.filter(session => session.lead_status === 'Dead').length;
+    const allAgentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
+const agentSessions = agentSearchQuery.trim().length > 0
+  ? allAgentSessions.filter(session => 
+      session.property_address?.toLowerCase().includes(agentSearchQuery.toLowerCase())
+    )
+  : allAgentSessions;
+    const activeCalls = allAgentSessions.filter(session => session.lead_status === 'Active').length;
+const pendingCalls = allAgentSessions.filter(session => session.lead_status === 'Pending').length;
+const deadCalls = allAgentSessions.filter(session => session.lead_status === 'Dead').length;
 
     return (
       <div className="app-container">
@@ -1242,6 +1248,28 @@ const App = () => {
                 <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
               </div>
             </div>
+            <div className="agent-search-container">
+  <div className="agent-search-wrapper">
+    <Search className="search-icon" size={18} />
+    <input
+      type="text"
+      placeholder="Search properties..."
+      value={agentSearchQuery}
+      onChange={(e) => setAgentSearchQuery(e.target.value)}
+      className="agent-search-input"
+    />
+    {agentSearchQuery && (
+      <button onClick={() => setAgentSearchQuery('')} className="search-clear-btn">
+        <X size={16} />
+      </button>
+    )}
+  </div>
+  {agentSearchQuery && (
+    <div className="search-results-count">
+      {agentSessions.length} result{agentSessions.length !== 1 ? 's' : ''} found
+    </div>
+  )}
+</div>
           </div>
         </div>
 
