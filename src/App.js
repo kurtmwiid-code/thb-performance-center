@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Home, TrendingUp, Award, Target, ArrowLeft, Phone, Search, Archive, X, Trash2, RotateCcw } from 'lucide-react';
+import { Home, TrendingUp, Award, Target, ArrowLeft, Phone, Search, Archive, X, Trash2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import './App.css';
 import { supabase } from './supabase';
+import { analyzeCategory, generateClaudesComment } from './enhanced-summarization';
+import AudioSnippetManager from './AudioSnippetManager';
 
 /* ========== SCORING QUESTIONS CONFIGURATION ========== */
 const binaryQuestions = [
@@ -1097,243 +1099,322 @@ const App = () => {
     );
   });
 
-  const DeepDiveView = () => {
-    const [selectedSession, setSelectedSession] = useState(null);
-    const [showSessionDetail, setShowSessionDetail] = useState(false);
-    const [editingSession, setEditingSession] = useState(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [editFormData, setEditFormData] = useState({});
-    const [agentSearchQuery, setAgentSearchQuery] = useState('');
+/* ========== REPLACE YOUR ENTIRE DeepDiveView FUNCTION WITH THIS CODE ========== */
+/* Keep everything BEFORE this function, and everything AFTER this function */
 
-    useEffect(() => {
-      const handleEscKey = (event) => {
-        if (event.key === 'Escape') {
-          if (showEditModal) setShowEditModal(false);
-          if (showSessionDetail) setShowSessionDetail(false);
-        }
-      };
-      if (showEditModal || showSessionDetail) {
-        document.addEventListener('keydown', handleEscKey);
-        document.body.style.overflow = 'hidden';
-      }
-      return () => {
-        document.removeEventListener('keydown', handleEscKey);
-        document.body.style.overflow = 'unset';
-      };
-    }, [showEditModal, showSessionDetail]);
+const DeepDiveView = () => {
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [showSessionDetail, setShowSessionDetail] = useState(false);
+  const [editingSession, setEditingSession] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
+  const [agentSearchQuery, setAgentSearchQuery] = useState('');
+  const [propertiesFolderOpen, setPropertiesFolderOpen] = useState(false);
+  const [categoryAnalyses, setCategoryAnalyses] = useState({});
 
-    const handleSessionClick = async (sessionId) => {
-      try {
-        const { data, error } = await supabase.from('qc_sessions').select('*, binary_scores(*), category_scores(*), qc_agents(name)').eq('id', sessionId).single();
-        if (error) throw error;
-        setSelectedSession(data);
-        setShowSessionDetail(true);
-      } catch (error) {
-        console.error('Error fetching session details:', error);
+  // ESC key listener
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showEditModal) setShowEditModal(false);
+        if (showSessionDetail) setShowSessionDetail(false);
       }
     };
-
-    const handleEditSession = async (sessionId) => {
-      try {
-        const { data, error } = await supabase.from('qc_sessions').select('*, binary_scores(*), category_scores(*)').eq('id', sessionId).single();
-        if (error) throw error;
-        setEditingSession(sessionId);
-        setEditFormData({
-          property_address: data.property_address || '',
-          lead_status: data.lead_status || 'Active',
-          call_date: data.call_date || '',
-          call_time: data.call_time || '',
-          final_comment: data.final_comment || '',
-          intro: data.binary_scores?.[0]?.intro || null,
-          first_ask: data.binary_scores?.[0]?.first_ask || null,
-          property_condition: data.binary_scores?.[0]?.property_condition || null,
-          bonding_rapport: data.category_scores?.[0]?.bonding_rapport || null,
-          bonding_rapport_comment: data.category_scores?.[0]?.bonding_rapport_comment || '',
-          magic_problem: data.category_scores?.[0]?.magic_problem || null,
-          magic_problem_comment: data.category_scores?.[0]?.magic_problem_comment || '',
-          second_ask: data.category_scores?.[0]?.second_ask || null,
-          second_ask_comment: data.category_scores?.[0]?.second_ask_comment || '',
-          objection_handling: data.category_scores?.[0]?.objection_handling || null,
-          objection_handling_comment: data.category_scores?.[0]?.objection_handling_comment || '',
-          closing_offer_presentation: data.category_scores?.[0]?.closing_offer_presentation || null,
-          closing_offer_comment: data.category_scores?.[0]?.closing_offer_comment || '',
-          closing_motivation: data.category_scores?.[0]?.closing_motivation || null,
-          closing_motivation_comment: data.category_scores?.[0]?.closing_motivation_comment || '',
-          closing_objections: data.category_scores?.[0]?.closing_objections || null,
-          closing_objections_comment: data.category_scores?.[0]?.closing_objections_comment || ''
-        });
-        setShowEditModal(true);
-      } catch (error) {
-        console.error('Error loading session for edit:', error);
-        alert('Error loading session data');
-      }
+    if (showEditModal || showSessionDetail) {
+      document.addEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'unset';
     };
+  }, [showEditModal, showSessionDetail]);
 
-    const handleSaveEdit = async () => {
-      try {
-        await supabase.from('qc_sessions').update({
-          property_address: editFormData.property_address,
-          lead_status: editFormData.lead_status,
-          call_date: editFormData.call_date,
-          call_time: editFormData.call_time,
-          final_comment: editFormData.final_comment
-        }).eq('id', editingSession);
+  // Generate category analyses on mount
+  useEffect(() => {
+    const analyses = {};
+    Object.keys(selectedAgent.scores).forEach(category => {
+      analyses[category] = analyzeCategory(category, selectedAgent.id, sessions);
+    });
+    setCategoryAnalyses(analyses);
+  }, [selectedAgent, sessions]);
 
-        await supabase.from('binary_scores').update({
-          intro: editFormData.intro,
-          first_ask: editFormData.first_ask,
-          property_condition: editFormData.property_condition
-        }).eq('session_id', editingSession);
+  const handleSessionClick = async (sessionId) => {
+    try {
+      const { data, error } = await supabase.from('qc_sessions').select('*, binary_scores(*), category_scores(*), qc_agents(name)').eq('id', sessionId).single();
+      if (error) throw error;
+      setSelectedSession(data);
+      setShowSessionDetail(true);
+    } catch (error) {
+      console.error('Error fetching session details:', error);
+    }
+  };
 
-        await supabase.from('category_scores').update({
-          bonding_rapport: editFormData.bonding_rapport,
-          bonding_rapport_comment: editFormData.bonding_rapport_comment,
-          magic_problem: editFormData.magic_problem,
-          magic_problem_comment: editFormData.magic_problem_comment,
-          second_ask: editFormData.second_ask,
-          second_ask_comment: editFormData.second_ask_comment,
-          objection_handling: editFormData.objection_handling,
-          objection_handling_comment: editFormData.objection_handling_comment,
-          closing_offer_presentation: editFormData.closing_offer_presentation,
-          closing_offer_comment: editFormData.closing_offer_comment,
-          closing_motivation: editFormData.closing_motivation,
-          closing_motivation_comment: editFormData.closing_motivation_comment,
-          closing_objections: editFormData.closing_objections,
-          closing_objections_comment: editFormData.closing_objections_comment
-        }).eq('session_id', editingSession);
+  const handleEditSession = async (sessionId) => {
+    try {
+      const { data, error } = await supabase.from('qc_sessions').select('*, binary_scores(*), category_scores(*)').eq('id', sessionId).single();
+      if (error) throw error;
+      setEditingSession(sessionId);
+      setEditFormData({
+        property_address: data.property_address || '',
+        lead_status: data.lead_status || 'Active',
+        call_date: data.call_date || '',
+        call_time: data.call_time || '',
+        final_comment: data.final_comment || '',
+        intro: data.binary_scores?.[0]?.intro || null,
+        first_ask: data.binary_scores?.[0]?.first_ask || null,
+        property_condition: data.binary_scores?.[0]?.property_condition || null,
+        bonding_rapport: data.category_scores?.[0]?.bonding_rapport || null,
+        bonding_rapport_comment: data.category_scores?.[0]?.bonding_rapport_comment || '',
+        magic_problem: data.category_scores?.[0]?.magic_problem || null,
+        magic_problem_comment: data.category_scores?.[0]?.magic_problem_comment || '',
+        second_ask: data.category_scores?.[0]?.second_ask || null,
+        second_ask_comment: data.category_scores?.[0]?.second_ask_comment || '',
+        objection_handling: data.category_scores?.[0]?.objection_handling || null,
+        objection_handling_comment: data.category_scores?.[0]?.objection_handling_comment || '',
+        closing_offer_presentation: data.category_scores?.[0]?.closing_offer_presentation || null,
+        closing_offer_comment: data.category_scores?.[0]?.closing_offer_comment || '',
+        closing_motivation: data.category_scores?.[0]?.closing_motivation || null,
+        closing_motivation_comment: data.category_scores?.[0]?.closing_motivation_comment || '',
+        closing_objections: data.category_scores?.[0]?.closing_objections || null,
+        closing_objections_comment: data.category_scores?.[0]?.closing_objections_comment || ''
+      });
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Error loading session for edit:', error);
+      alert('Error loading session data');
+    }
+  };
 
-        const newOverallScore = calculateOverallScore(
-          { intro: editFormData.intro, first_ask: editFormData.first_ask, property_condition: editFormData.property_condition },
-          { bonding_rapport: editFormData.bonding_rapport, magic_problem: editFormData.magic_problem, second_ask: editFormData.second_ask, objection_handling: editFormData.objection_handling, closing_offer_presentation: editFormData.closing_offer_presentation, closing_motivation: editFormData.closing_motivation, closing_objections: editFormData.closing_objections }
-        );
+  const handleSaveEdit = async () => {
+    try {
+      await supabase.from('qc_sessions').update({
+        property_address: editFormData.property_address,
+        lead_status: editFormData.lead_status,
+        call_date: editFormData.call_date,
+        call_time: editFormData.call_time,
+        final_comment: editFormData.final_comment
+      }).eq('id', editingSession);
 
-        await supabase.from('qc_sessions').update({ overall_score: newOverallScore }).eq('id', editingSession);
+      await supabase.from('binary_scores').update({
+        intro: editFormData.intro,
+        first_ask: editFormData.first_ask,
+        property_condition: editFormData.property_condition
+      }).eq('session_id', editingSession);
 
-        setShowEditModal(false);
-        alert('Session updated successfully!');
-        await fetchAgentsData();
-      } catch (error) {
-        console.error('Error updating session:', error);
-        alert('Error updating session');
-      }
-    };
+      await supabase.from('category_scores').update({
+        bonding_rapport: editFormData.bonding_rapport,
+        bonding_rapport_comment: editFormData.bonding_rapport_comment,
+        magic_problem: editFormData.magic_problem,
+        magic_problem_comment: editFormData.magic_problem_comment,
+        second_ask: editFormData.second_ask,
+        second_ask_comment: editFormData.second_ask_comment,
+        objection_handling: editFormData.objection_handling,
+        objection_handling_comment: editFormData.objection_handling_comment,
+        closing_offer_presentation: editFormData.closing_offer_presentation,
+        closing_offer_comment: editFormData.closing_offer_comment,
+        closing_motivation: editFormData.closing_motivation,
+        closing_motivation_comment: editFormData.closing_motivation_comment,
+        closing_objections: editFormData.closing_objections,
+        closing_objections_comment: editFormData.closing_objections_comment
+      }).eq('session_id', editingSession);
 
-    const handleArchiveSession = async (sessionId) => {
-      if (!window.confirm('Archive this QC session? You can restore it later from the Archive.')) return;
-      await archiveSession(sessionId);
-    };
+      const newOverallScore = calculateOverallScore(
+        { intro: editFormData.intro, first_ask: editFormData.first_ask, property_condition: editFormData.property_condition },
+        { bonding_rapport: editFormData.bonding_rapport, magic_problem: editFormData.magic_problem, second_ask: editFormData.second_ask, objection_handling: editFormData.objection_handling, closing_offer_presentation: editFormData.closing_offer_presentation, closing_motivation: editFormData.closing_motivation, closing_objections: editFormData.closing_objections }
+      );
 
-    const allAgentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
-const agentSessions = agentSearchQuery.trim().length > 0
-  ? allAgentSessions.filter(session => 
-      session.property_address?.toLowerCase().includes(agentSearchQuery.toLowerCase())
-    )
-  : allAgentSessions;
-    const activeCalls = allAgentSessions.filter(session => session.lead_status === 'Active').length;
-const pendingCalls = allAgentSessions.filter(session => session.lead_status === 'Pending').length;
-const deadCalls = allAgentSessions.filter(session => session.lead_status === 'Dead').length;
+      await supabase.from('qc_sessions').update({ overall_score: newOverallScore }).eq('id', editingSession);
 
-    return (
-      <div className="app-container">
-        <div className="app-header">
-          <div className="header-content">
-            <button onClick={() => setCurrentView('reporting')} className="back-button"><ArrowLeft className="back-icon" /></button>
-            <Home className="header-icon" />
-            <div>
-              <h1 className="header-title">QC SESSIONS | {selectedAgent.name} - {selectedAgent.overallScore}% Overall</h1>
-              <div className="lead-breakdown">
-                <span className="breakdown-item">📊 Lead Breakdown:</span>
-                <span className="breakdown-status active">🟢 Active {activeCalls}</span>
-                <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
-                <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
-              </div>
-            </div>
-            <div className="agent-search-container">
-  <div className="agent-search-wrapper">
-    <Search className="search-icon" size={18} />
-    <input
-      type="text"
-      placeholder="Search properties..."
-      value={agentSearchQuery}
-      onChange={(e) => setAgentSearchQuery(e.target.value)}
-      className="agent-search-input"
-    />
-    {agentSearchQuery && (
-      <button onClick={() => setAgentSearchQuery('')} className="search-clear-btn">
-        <X size={16} />
-      </button>
-    )}
-  </div>
-  {agentSearchQuery && (
-    <div className="search-results-count">
-      {agentSessions.length} result{agentSessions.length !== 1 ? 's' : ''} found
-    </div>
-  )}
-</div>
-          </div>
-        </div>
+      setShowEditModal(false);
+      alert('Session updated successfully!');
+      await fetchAgentsData();
+    } catch (error) {
+      console.error('Error updating session:', error);
+      alert('Error updating session');
+    }
+  };
 
-        <div className="main-content">
-          <div className="qc-section">
-            <h2 className="qc-title">📞 Session Details</h2>
-            <div className="qc-calls-grid">
-              {agentSessions.map((session) => (
-                <div key={session.id} className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`} onClick={() => handleSessionClick(session.id)}>
-                  <div className="qc-call-header">
-                    <div className="session-title">{session.property_address} - {session.overall_score}%</div>
-                    <div className="session-meta">{session.qc_agents?.name} - {session.call_date} | {selectedAgent.name} - {session.overall_score}% Overall</div>
-                    <div className="click-hint">Click here to view more info</div>
-                  </div>
-                  <div className="qc-call-time">🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)</div>
-                  <div className="session-actions">
-                    <button onClick={(e) => { e.stopPropagation(); handleEditSession(session.id); }} className="edit-btn">Edit</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleArchiveSession(session.id); }} className="archive-session-btn"><Archive size={14} /> Archive</button>
-                  </div>
-                </div>
-              ))}
+  const handleArchiveSession = async (sessionId) => {
+    if (!window.confirm('Archive this QC session? You can restore it later from the Archive.')) return;
+    await archiveSession(sessionId);
+  };
+
+  const allAgentSessions = sessions.filter(session => session.agent_id === selectedAgent.id);
+  const agentSessions = agentSearchQuery.trim().length > 0
+    ? allAgentSessions.filter(session => 
+        session.property_address?.toLowerCase().includes(agentSearchQuery.toLowerCase())
+      )
+    : allAgentSessions;
+
+  const activeCalls = allAgentSessions.filter(session => session.lead_status === 'Active').length;
+  const pendingCalls = allAgentSessions.filter(session => session.lead_status === 'Pending').length;
+  const deadCalls = allAgentSessions.filter(session => session.lead_status === 'Dead').length;
+
+  return (
+    <div className="app-container">
+      {/* HEADER */}
+      <div className="app-header">
+        <div className="header-content">
+          <button onClick={() => setCurrentView('reporting')} className="back-button">
+            <ArrowLeft className="back-icon" />
+          </button>
+          <Home className="header-icon" />
+          <div style={{ flex: 1 }}>
+            <h1 className="header-title">
+              QC SESSIONS | {selectedAgent.name} - {selectedAgent.overallScore}% Overall
+            </h1>
+            <div className="lead-breakdown">
+              <span className="breakdown-item">📊 Lead Breakdown:</span>
+              <span className="breakdown-status active">🟢 Active {activeCalls}</span>
+              <span className="breakdown-status pending">🟡 Pending {pendingCalls}</span>
+              <span className="breakdown-status dead">🔴 Dead {deadCalls}</span>
             </div>
           </div>
-
-          {/* UPDATED: Category sections with proper titles instead of emojis */}
-          {Object.entries(selectedAgent.scores).map(([category, score]) => (
-            <div key={category} className="category-section">
-              <div className="category-header-display">
-                <span className="category-title-left">{category}</span>
-                <span className="category-score-right">{category} ({score}%)</span>
+          <div className="agent-search-container">
+            <div className="agent-search-wrapper">
+              <Search className="search-icon" size={18} />
+              <input
+                type="text"
+                placeholder="Search properties..."
+                value={agentSearchQuery}
+                onChange={(e) => setAgentSearchQuery(e.target.value)}
+                className="agent-search-input"
+              />
+              {agentSearchQuery && (
+                <button onClick={() => setAgentSearchQuery('')} className="search-clear-btn">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            {agentSearchQuery && (
+              <div className="search-results-count">
+                {agentSessions.length} result{agentSessions.length !== 1 ? 's' : ''} found
               </div>
-              <div className="coaching-insight">
-                <span className="insight-icon">💡</span>
-                <span className="insight-text"><strong>QC Summary:</strong> {generateQCCommentSummary(category, selectedAgent.id)}</span>
-              </div>
-            </div>
-          ))}
-
-          <div className="claude-section">
-            <div className="claude-header">
-              <div className="claude-avatar">C</div>
-              <h3 className="claude-title">Claude's Clever Comment</h3>
-            </div>
-            <div className="claude-comment">
-              <p className="claude-text">
-                "{selectedAgent.name}'s showing real promise with some standout strengths! 
-                {Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).length > 0 && 
-                  ` Absolutely crushing it in ${Object.entries(selectedAgent.scores).filter(([_, score]) => score >= 90).map(([category]) => category).join(' and ')} with ${Math.max(...Object.values(selectedAgent.scores))}% - that's elite territory!`
-                }
-                {selectedAgent.overallScore >= 80 ? ` With an ${selectedAgent.overallScore}% overall, they're consistently delivering quality calls. ` :
-                  selectedAgent.overallScore >= 70 ? ` At ${selectedAgent.overallScore}% overall, they're building solid momentum. ` :
-                  ` At ${selectedAgent.overallScore}% overall, there's clear growth opportunity. `
-                }
-                The data shows focusing on {Object.entries(selectedAgent.scores).filter(([_, score]) => score < 70).map(([category]) => category).slice(0, 2).join(' and ') || 'maintaining current performance'} could unlock their next level!"
-              </p>
-            </div>
+            )}
           </div>
-
-          <SessionDetailModal showSessionDetail={showSessionDetail} setShowSessionDetail={setShowSessionDetail} selectedSession={selectedSession} selectedAgent={selectedAgent} />
-          <EditModal showEditModal={showEditModal} setShowEditModal={setShowEditModal} editFormData={editFormData} setEditFormData={setEditFormData} editingSession={editingSession} handleSaveEdit={handleSaveEdit} />
         </div>
       </div>
-    );
-  };
+
+      <div className="main-content">
+        {/* ========== CATEGORY ANALYSES (TOP) ========== */}
+        {Object.entries(categoryAnalyses).map(([category, analysis]) => (
+          <div key={category} className="category-analysis-card">
+            <div className="category-analysis-header">
+              <h2 className="category-analysis-title">{category}</h2>
+              <div className="category-analysis-score">
+                {analysis.score}%
+                {analysis.trend === 'improving' && <span className="trend-indicator up">📈</span>}
+                {analysis.trend === 'declining' && <span className="trend-indicator down">📉</span>}
+              </div>
+            </div>
+            
+            <div className="category-analysis-content">
+              <div className="analysis-summary" dangerouslySetInnerHTML={{ __html: analysis.summary.replace(/\n/g, '<br />') }} />
+            </div>
+          </div>
+        ))}
+
+        {/* ========== CLAUDE'S CLEVER COMMENT ========== */}
+        <div className="claude-section-enhanced">
+          <div className="claude-header">
+            <div className="claude-avatar">C</div>
+            <h3 className="claude-title">Claude's Clever Comment</h3>
+          </div>
+          <div className="claude-comment-enhanced">
+            <p className="claude-text">
+              {generateClaudesComment(
+                selectedAgent.name,
+                selectedAgent.overallScore,
+                categoryAnalyses,
+                sessions
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* ========== PROPERTIES FOLDER (BOTTOM) ========== */}
+        <div className="properties-folder">
+          <button 
+            className="properties-folder-header"
+            onClick={() => setPropertiesFolderOpen(!propertiesFolderOpen)}
+          >
+            <div className="properties-folder-title">
+              <span className="folder-icon">📁</span>
+              <span>PROPERTIES</span>
+              <span className="properties-count">({allAgentSessions.length} session{allAgentSessions.length !== 1 ? 's' : ''})</span>
+            </div>
+            {propertiesFolderOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
+
+          {propertiesFolderOpen && (
+            <div className="properties-folder-content">
+              <div className="qc-calls-grid">
+                {agentSessions.map((session) => (
+                  <div 
+                    key={session.id} 
+                    className={`qc-call-card ${session.lead_status?.toLowerCase() || 'active'}`}
+                    onClick={() => handleSessionClick(session.id)}
+                  >
+                    <div className="qc-call-header">
+                      <div className="session-title">
+                        {session.property_address} - {session.overall_score}%
+                      </div>
+                      <div className="session-meta">
+                        {session.qc_agents?.name} - {session.call_date} | {selectedAgent.name} - {session.overall_score}% Overall
+                      </div>
+                      <div className="click-hint">Click here to view more info</div>
+                    </div>
+                    <div className="qc-call-time">
+                      🕒 {session.call_date} {session.call_time} ({session.lead_status} Lead)
+                    </div>
+                    <div className="session-actions">
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          handleEditSession(session.id); 
+                        }} 
+                        className="edit-btn"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          handleArchiveSession(session.id); 
+                        }} 
+                        className="archive-session-btn"
+                      >
+                        <Archive size={14} /> Archive
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <SessionDetailModal 
+        showSessionDetail={showSessionDetail} 
+        setShowSessionDetail={setShowSessionDetail} 
+        selectedSession={selectedSession} 
+        selectedAgent={selectedAgent} 
+      />
+      <EditModal 
+        showEditModal={showEditModal} 
+        setShowEditModal={setShowEditModal} 
+        editFormData={editFormData} 
+        setEditFormData={setEditFormData} 
+        editingSession={editingSession} 
+        handleSaveEdit={handleSaveEdit} 
+      />
+    </div>
+  );
+};
+
+/* ========== END OF DeepDiveView - DON'T DELETE ANYTHING AFTER THIS ========== */
 
   /* ========== QC SCORING VIEW ========== */
   const QCScoringView = () => {
