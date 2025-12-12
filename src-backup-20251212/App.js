@@ -3,7 +3,7 @@ import { Home, TrendingUp, Award, Target, ArrowLeft, Phone, Search, Archive, X, 
 import './App.css';
 import { supabase } from './supabase';
 import { analyzeCategory, generateClaudesComment } from './enhanced-summarization';
-import AudioSnippetManager from './AudioSnippetManager';
+
 
 /* ========== SCORING QUESTIONS CONFIGURATION ========== */
 const binaryQuestions = [

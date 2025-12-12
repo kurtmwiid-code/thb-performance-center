@@ -297,9 +297,14 @@ export const generateClaudesComment = (agentName, overallScore, categoryAnalyses
     .filter(([_, analysis]) => analysis.trend === "improving")
     .map(([category]) => category);
 
+  // Safety check - return early if no data
+  if (!strongest || strongest.length === 0 || !weakest || weakest.length === 0) {
+    return `📊 ${agentName} needs more QC sessions to generate intelligent analysis. Add more sessions to unlock AI-powered insights!`;
+  }
+
   // Build the comment
   let comment = `${emoji} **${agentName} is ${performanceLevel}** with a ${overallScore}% overall performance. `;
-
+  
   // Highlight strength
   if (strongest[1].score >= 75) {
     comment += `Their **${strongest[0]}** (${strongest[1].score}%) is a real standout - ${strongest[1].strengths[0] || 'consistently strong execution'}. `;
