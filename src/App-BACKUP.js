@@ -3,7 +3,7 @@ import { Home, TrendingUp, Award, Target, ArrowLeft, Phone, Search, Archive, X, 
 import './App.css';
 import { supabase } from './supabase';
 import { analyzeCategory, generateClaudesComment } from './enhanced-summarization';
-import { calculateDashboardMetrics } from './dashboardMetrics';
+
 
 /* ========== SCORING QUESTIONS CONFIGURATION ========== */
 const binaryQuestions = [
@@ -626,27 +626,26 @@ const App = () => {
 
   const mostImproved = useMemo(() => calculateMostImproved(sessions, agents), [sessions, agents]);
 
- const teamData = {
-    averageScore: dashboardMetrics.teamAverageScore,
-    trend: 2.3, // Keep your existing trend calculation for now
-    topRep: dashboardMetrics.topRepThisWeek.agent 
-      ? { 
-          name: dashboardMetrics.topRepThisWeek.agent.name, 
-          score: dashboardMetrics.topRepThisWeek.score 
-        } 
-      : { name: 'No data', score: 0 },
-    mostImproved: dashboardMetrics.mostImprovedRep.agent
-      ? {
-          name: dashboardMetrics.mostImprovedRep.agent.name,
-          improvement: dashboardMetrics.mostImprovedRep.improvement,
-          currentScore: dashboardMetrics.mostImprovedRep.current
-        }
-      : mostImproved, // Fallback to your existing calculation
-    teamStrength: {
-      category: dashboardMetrics.teamGreatestStrength.category,
-      score: dashboardMetrics.teamGreatestStrength.score
-    }
-};
+  const teamData = {
+    averageScore: agents.length > 0 ? Math.round(agents.reduce((sum, agent) => sum + agent.overallScore, 0) / agents.length * 10) / 10 : 0,
+    trend: 2.3,
+    topRep: agents.length > 0 ? agents.reduce((prev, current) => prev.overallScore > current.overallScore ? prev : current) : { name: 'No data', score: 0 },
+    mostImproved: mostImproved,
+    teamStrength: (() => {
+      if (agents.length === 0) return { category: 'No data', score: 0 };
+      const categoryAverages = {
+        'Bonding & Rapport': agents.reduce((sum, agent) => sum + (agent.scores['Bonding & Rapport'] || 0), 0) / agents.length,
+        'Magic Problem': agents.reduce((sum, agent) => sum + (agent.scores['Magic Problem'] || 0), 0) / agents.length,
+        'Second Ask': agents.reduce((sum, agent) => sum + (agent.scores['Second Ask'] || 0), 0) / agents.length,
+        'Closing': agents.reduce((sum, agent) => sum + (agent.scores['Closing'] || 0), 0) / agents.length
+      };
+      const strongest = Object.entries(categoryAverages).reduce((prev, current) => 
+        current[1] > prev[1] ? current : prev
+      );
+      return { category: strongest[0], score: Math.round(strongest[1] * 10) / 10 };
+    })()
+  };
+
   const getStatusColor = (status) => {
     switch(status) {
       case 'green': return 'status-green';
