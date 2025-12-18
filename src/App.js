@@ -626,6 +626,9 @@ const App = () => {
 
   const mostImproved = useMemo(() => calculateMostImproved(sessions, agents), [sessions, agents]);
 
+  // Calculate dashboard metrics using V5 weighted calculation
+const dashboardMetrics = calculateDashboardMetrics(agents, sessions);
+
  const teamData = {
     averageScore: dashboardMetrics.teamAverageScore,
     trend: 2.3, // Keep your existing trend calculation for now
